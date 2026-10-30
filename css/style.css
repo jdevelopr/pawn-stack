@@ -382,3 +382,17 @@ input[type=number] { -moz-appearance: textfield; }
 #ui .tab { font-size: 8px; padding: 6px 4px; }
 #ui .inv-card .tag-row .btn { font-size: 7px; padding: 4px 5px 5px; }
 #ui .inv-tools .btn { font-size: 7px; padding: 5px 6px 6px; }
+
+/* midday pricing panel */
+.price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
+.price-row { display: grid; grid-template-columns: 30px 1fr auto; gap: 6px; align-items: center; background: var(--panel-d); padding: 4px 6px; box-shadow: inset 2px 2px 0 #120d1a; }
+.price-row.held { opacity: .6; }
+.price-row .icon.sm { width: 30px; height: 30px; padding: 0; }
+.price-ctl { display: flex; gap: 4px; align-items: center; }
+.price-ctl .tag-in { width: 70px; font-size: 17px; padding: 2px 6px; text-align: right; }
+.price-ctl .margin { font-size: 14px; min-width: 52px; text-align: right; }
+.price-ctl .margin.p { color: var(--green); } .price-ctl .margin.n { color: var(--red); }
+.inv-tools { flex-wrap: wrap; }
+#ui .price-ctl .btn { font-size: 7px; padding: 4px 5px 5px; }
+#ui #pricep { width: 780px; }
+#ui .price-row .inv-txt .nm { font-size: 16px; }

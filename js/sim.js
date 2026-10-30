@@ -41,7 +41,7 @@ const APPR_DET = [0, 0, 0.45, 0.7, 0.9, 1];
 export const START_CASH = 750;
 const SELLER_MS = 16000, BUYER_MS = 15000, WALK_MS = 1600, GAP_MS = 1100, EXCL_MS = 4000;
 const HARD_TIMES_CASH = 200, DOWNGRADE_REFUND = 0.3;
-// Walk-in shoppers browse your shelves during the buying and selling parts of the day.
+// Walk-in shoppers browse your shelves during the selling part of the day (not while you're buying).
 const BROWSE_MS = [6000, 11000];
 /** Insurance: nightly premium = base + rate x total paid value of your stock; pays `cover` of covered losses. */
 export const INSURANCE = [
@@ -53,7 +53,7 @@ export const premiumOf = p => {
   const I = INSURANCE[p.insurance || 0];
   return I.id ? Math.round(I.base + I.rate * p.inv.reduce((s, i) => s + (i.paid || 0), 0)) : 0;
 };
-const DAWN_MS = 4200, NOON_MS = 3200, EVENING_MP_MS = 90000;
+const DAWN_MS = 4200, PRICING_MP_MS = 60000, EVENING_MP_MS = 90000;
 export const PLAYER_COLORS = ['#e8554e', '#3fa7d6', '#f4c542', '#7bc96f'];
 
 export function nice(n) {
@@ -242,7 +242,6 @@ export class Sim {
         if (now >= S.phaseEnd) { S.phase = 'buy'; S.nextAt = now; this.dirty = true; }
         break;
       case 'buy': {
-        this.browse(now);
         const c = S.seller;
         if (c && !c.done && now >= c.until) this.customerLeave(c, now, say(c.prof, 'walk'));
         if ((!c || c.done) && now >= S.nextAt) {
@@ -251,14 +250,17 @@ export class Sim {
             n.openAt = now + WALK_MS; n.until = n.openAt + Math.round(SELLER_MS * (PROFILES[n.prof].sell.time || 1)); n.done = false;
             S.seller = n; this.dirty = true;
           } else {
-            S.seller = null; S.phase = 'noon'; S.phaseEnd = now + NOON_MS;
+            // Midday: shop closed while players set shelf prices. Solo waits for the player;
+            // multiplayer waits for everyone to be ready, or the timer.
+            S.seller = null; S.phase = 'noon'; S.phaseEnd = this.solo ? 0 : now + PRICING_MP_MS;
+            for (const p of this.live()) p.ready = false;
             this.fx({ type: 'phase', phase: 'noon', day: S.day });
           }
         }
         break;
       }
       case 'noon':
-        if (now >= S.phaseEnd) { S.phase = 'sell'; S.nextAt = now; this.dirty = true; }
+        if (S.phaseEnd && now >= S.phaseEnd) this.openDoors(now);
         break;
       case 'sell': {
         this.browse(now);
@@ -282,6 +284,15 @@ export class Sim {
         if (!this.solo && S.phaseEnd && now >= S.phaseEnd) this.nextDay(now);
         break;
     }
+  }
+
+  /** End of the pricing break: doors open for buyers and walk-in shoppers. */
+  openDoors(now) {
+    const S = this.s;
+    S.phase = 'sell'; S.phaseEnd = 0; S.nextAt = now + 1500;
+    for (const p of this.live()) { p.ready = false; p.nextBrowse = now + rand(...BROWSE_MS); }
+    this.fx({ type: 'phase', phase: 'sell', day: S.day });
+    this.dirty = true;
   }
 
   customerLeave(c, now, text) {
@@ -464,10 +475,10 @@ export class Sim {
         return;
       }
       case 'ready': {
-        if (S.phase !== 'evening') return;
+        if (S.phase !== 'evening' && S.phase !== 'noon') return;
         p.ready = a.v !== false; this.dirty = true;
         const live = this.live().filter(x => x.connected);
-        if (live.length && live.every(x => x.ready)) this.nextDay(now);
+        if (live.length && live.every(x => x.ready)) S.phase === 'noon' ? this.openDoors(now) : this.nextDay(now);
         return;
       }
     }

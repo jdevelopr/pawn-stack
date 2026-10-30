@@ -408,6 +408,8 @@ function onPhase(ph, old) {
     showCard('CLOSING TIME', '', 1400);
     setTimeout(() => { if (app.view?.phase === 'evening' && !panel) openPanel('eve'); }, 1300);
   }
+  if (ph === 'noon') setTimeout(() => { if (app.view?.phase === 'noon') openPanel('price'); }, 300);
+  if (ph === 'sell' && old === 'noon') showCard('AFTERNOON', 'Doors open: buyers and walk-in shoppers', 1600);
   if (ph === 'buy' || ph === 'sell') closePanel();
   if (ph === 'over') {
     clearInterval(simTimer);
@@ -470,7 +472,7 @@ function zoneAt(x) {
 }
 function interact() {
   const z = zoneAt(keeper.x);
-  if (z === 'shelves') openPanel('inv');
+  if (z === 'shelves') openPanel(app.view?.phase === 'noon' ? 'price' : 'inv');
   else if (z === 'office') openPanel('upg');
   else if (z === 'counter') {
     if (app.view?.phase === 'evening') openPanel('eve');
@@ -712,10 +714,10 @@ function ui(t) {
   if (t - lastUiT < 100 && !dirtyUI) return;
   lastUiT = t;
 
-  const phaseNames = { dawn: 'MORNING', buy: 'BUYING', noon: 'MIDDAY', sell: 'SELLING', evening: 'EVENING', over: 'CLOSED' };
+  const phaseNames = { dawn: 'MORNING', buy: 'BUYING', noon: 'PRICING', sell: 'SELLING', evening: 'EVENING', over: 'CLOSED' };
   $('#hud-day').textContent = v.maxDays ? `SOL ${v.day}/${v.maxDays}` : `SOL ${v.day}`;
   let phTxt = phaseNames[ph] || '';
-  if (ph === 'evening' && v.left) phTxt += ` ${Math.ceil(remain(v.left) / 1000)}s`;
+  if ((ph === 'evening' || ph === 'noon') && v.left) phTxt += ` ${Math.ceil(remain(v.left) / 1000)}s`;
   $('#hud-phase').textContent = phTxt;
   $('#hud-queue').textContent = (ph === 'buy' || ph === 'sell') ? `${v.queue} IN LINE` : '';
   const cashEl = $('#hud-cash');
@@ -744,7 +746,7 @@ function ui(t) {
   // phase card
   if (ph === 'dawn') {
     showCard(`SOL ${v.day}`, eventLine(v.event, v.day));
-  } else if (ph === 'noon') showCard('AFTERNOON', 'Buyers are cycling through the airlock');
+  }
   else if (cardUntil && performance.now() > cardUntil) hideCard();
   else if (!cardUntil && !$('#card').hidden) hideCard();
 
@@ -753,12 +755,14 @@ function ui(t) {
   let prompt = '';
   if (cust && !cust.done && z !== 'counter') prompt = 'Customer at the counter';
   if (ph === 'evening' && !panel) prompt = 'Office board: upgrades. Counter: day summary.';
+  if (ph === 'noon' && !panel) prompt = 'Shelves: set prices, then open the doors';
   $('#prompt').textContent = prompt;
 
   renderDeal();
   if (panel === 'eve') renderEvening();
   if (panel === 'inv') renderInv();
   if (panel === 'upg') renderUpg();
+  if (panel === 'price') renderPrice();
   fitPanels();
   dirtyUI = false;
 }
@@ -818,14 +822,15 @@ function openPanel(name) {
   panel = name;
   dirtyUI = true;
   sfx('open');
-  const el = { inv: '#invp', upg: '#upg', eve: '#eve' }[name];
+  const el = { inv: '#invp', upg: '#upg', eve: '#eve', price: '#pricep' }[name];
   $(el).hidden = false;
   if (name === 'inv') renderInv(true);
   if (name === 'upg') renderUpg(true);
   if (name === 'eve') { eveKey = ''; renderEvening(); }
+  if (name === 'price') { priceKey = ''; renderPrice(); }
 }
 function closePanel() {
-  for (const s of ['#invp', '#upg', '#eve']) $(s).hidden = true;
+  for (const s of ['#invp', '#upg', '#eve', '#pricep']) $(s).hidden = true;
   panel = null;
 }
 
@@ -1091,6 +1096,75 @@ function renderUpg(force) {
   }));
 }
 function openOffice(tab) { if (tab) officeTab = tab; openPanel('upg'); }
+
+/* midday pricing break */
+let priceKey = '';
+function renderPrice() {
+  const v = app.view, el = $('#pricep');
+  if (v.phase !== 'noon') { closePanel(); return; }
+  const inv = v.me.inv;
+  const solo = v.players.length === 1;
+  const readyN = v.players.filter(p => p.ready && p.connected).length;
+  const liveN = v.players.filter(p => p.connected && !p.bankrupt).length;
+  const secs = v.left ? Math.ceil(remain(v.left) / 1000) : 0;
+  const key = JSON.stringify([inv.map(i => [i.uid, i.price]), v.me.ready, readyN, secs]);
+  if (key === priceKey) return;
+  if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;  // don't rebuild while typing
+  priceKey = key;
+  const mid = i => (i.est.lo + i.est.hi) / 2;
+  const listed = inv.filter(i => i.price != null).length;
+  const go = solo ? 'Open the doors' : v.me.ready ? `Waiting ${readyN}/${liveN}` : `Ready${secs ? ` (${secs}s)` : ''}`;
+  el.innerHTML = `${closeBtn}<h2>Midday: set your prices</h2>
+    <div class="hint">Walk-in shoppers buy anything priced below what they'd pay. Higher prices earn more per sale but sell less often.</div>
+    ${inv.length ? `
+    <div class="inv-tools"><span class="meta">${listed}/${inv.length} on sale</span>
+      <span class="meta">Set all to estimate:</span>
+      <button class="btn small" data-pct="0.9">90%</button><button class="btn small" data-pct="1.1">110%</button>
+      <button class="btn small" data-pct="1.3">130%</button><button class="btn small" data-pct="1.5">150%</button>
+      <button class="btn small" data-bulk="auto">Suggested</button>
+      <button class="btn small" data-bulk="down">-10%</button><button class="btn small" data-bulk="up">+10%</button></div>
+    <div class="price-grid">${inv.map(i => {
+      const m = mid(i), margin = i.price != null ? i.price - i.paid : null;
+      return `<div class="price-row ${i.price == null ? 'held' : ''}" title="${esc(ITEMS[i.id].n)}">
+        <img class="icon sm" src="${itemIcon(i.id, 2)}" alt="">
+        <div class="inv-txt"><div class="nm">${esc(ITEMS[i.id].n)}</div>
+          <div class="meta">${COND[i.cond].n} &middot; paid ${money(i.paid)} &middot; est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</div>
+          ${i.mem?.sale ? `<div class="meta mem-dim">last sold ${money(i.mem.sale.price)} (${COND[i.mem.sale.cond].n})</div>` : ''}</div>
+        <div class="price-ctl">
+          ${i.price != null
+            ? `<input class="field tag-in" type="number" min="1" value="${i.price}" data-price="${i.uid}" aria-label="Price for ${esc(ITEMS[i.id].n)}">
+               <span class="margin ${margin >= 0 ? 'p' : 'n'}">${margin >= 0 ? '+' : ''}${money(margin)}</span>
+               <button class="btn small" data-hold="${i.uid}">Hold</button>`
+            : `<span class="meta">Not for sale</span><button class="btn small good" data-list="${i.uid}">List</button>`}
+        </div>
+      </div>`;
+    }).join('')}</div>` : '<div class="empty">Nothing on the shelves yet.</div>'}
+    <div class="row"><button class="btn primary" id="price-go" ${v.me.bankrupt ? 'disabled' : ''}>${go}</button></div>`;
+  el.querySelectorAll('[data-price]').forEach(inp => {
+    const commit = () => { const n = Math.floor(+inp.value); if (n > 0) act({ type: 'price', uid: inp.dataset.price, price: n }); };
+    inp.addEventListener('change', commit);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+  });
+  el.querySelectorAll('[data-hold]').forEach(b => b.addEventListener('click', () => act({ type: 'price', uid: b.dataset.hold, price: null })));
+  el.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => act({ type: 'price', uid: b.dataset.list, price: 'auto' })));
+  el.querySelectorAll('[data-pct]').forEach(b => b.addEventListener('click', () => {
+    sfx('tick');
+    for (const i of inv) act({ type: 'price', uid: i.uid, price: Math.max(1, Math.round(mid(i) * +b.dataset.pct)) });
+  }));
+  el.querySelectorAll('[data-bulk]').forEach(b => b.addEventListener('click', () => {
+    sfx('tick');
+    for (const i of inv) {
+      if (b.dataset.bulk === 'auto') act({ type: 'price', uid: i.uid, price: 'auto' });
+      else if (i.price != null) act({ type: 'price', uid: i.uid, price: Math.max(1, Math.round(i.price * (b.dataset.bulk === 'down' ? 0.9 : 1.1))) });
+    }
+  }));
+  el.querySelector('[data-close]').addEventListener('click', closePanel);
+  $('#price-go').addEventListener('click', () => {
+    // commit a price that is still being typed before opening
+    const a = document.activeElement; if (a && a.dataset && a.dataset.price) a.blur();
+    sfx('click'); act({ type: 'ready', v: !v.me.ready });
+  });
+}
 
 /* evening summary */
 let eveKey = '';
