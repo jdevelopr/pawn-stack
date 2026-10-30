@@ -12,15 +12,18 @@ import { createHost, createClient, clientId, joinUrl, roomFromUrl } from './net.
 import {
   W, H, WORLD_W, FLOOR, ZONES, COUNTER_X, CUSTOMER_X,
   drawScene, drawCounterFront, drawPerson, drawNight, lookFromSeed, bubble, pixelTextOutlined, textW,
+  drawAstronaut, drawGrey, drawGlorp, drawZix, drawBot,
 } from './art.js';
 import { sfx, setMuted, isMuted } from './sound.js';
+import { PROFILES, say } from './profiles.js';
 
-const SLUG = 'pawnstack-v1';
-const SAVE_KEY = 'pawnstack-save';
+const SLUG = 'redplanetpawn-v1';
+const SAVE_KEY = 'redplanetpawn-save';
 const MAX_PLAYERS = 4;
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const money = n => (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString();
+const money = n => (n < 0 ? '-' : '') + Math.abs(Math.round(n)).toLocaleString('en-US') + ' CR';
+const seedOf = id => [...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7);
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
@@ -112,7 +115,7 @@ function hostGame() {
     $('#join-url').value = joinUrl(code);
     $('#ready-btn').hidden = true;
     $('#start-btn').hidden = false;
-    $('#lobby-len').textContent = `${app.maxDays} day game`;
+    $('#lobby-len').textContent = `${app.maxDays} sol game`;
     setScreen('lobby');
     renderLobby();
   });
@@ -206,7 +209,7 @@ function joinGame(code) {
   });
   client.on('msg', msg => {
     if (msg.t === 'lobby') {
-      $('#lobby-len').textContent = `${msg.maxDays} day game`;
+      $('#lobby-len').textContent = `${msg.maxDays} sol game`;
       renderLobby(msg.players);
     } else if (msg.t === 'start') {
       if (!app.started) { app.started = true; startGame(); }
@@ -465,7 +468,7 @@ function syncNpcs() {
   const active = npcs.find(n => !n.leaving);
   if (c && (!active || active.id !== c.id)) {
     if (active) leave(active);
-    npcs.push({ id: c.id, look: lookFromSeed(c.look), x: -14, target: CUSTOMER_X, dir: 1, frame: 0, anim: 0, leaving: false, carry: null, born: performance.now() });
+    npcs.push({ id: c.id, prof: c.prof, look: customerLook(c.prof, c.look), x: -14, target: CUSTOMER_X, dir: 1, frame: 0, anim: 0, leaving: false, carry: null, born: performance.now() });
   } else if (!c && active) leave(active);
   else if (c && active && c.done && !active.doneAt) {
     active.doneAt = performance.now();
@@ -489,18 +492,18 @@ function render(t) {
   const c = Math.round(cam);
   const me = v?.me;
   ctx.clearRect(0, 0, W, H);
-  drawScene(ctx, c, { phase: v?.phase, inv: me?.inv || [], up: me?.up, signLevel: me?.up.sign || 0 });
+  drawScene(ctx, c, { phase: v?.phase, inv: me?.inv || [], up: me?.up, signLevel: me?.up.sign || 0, t });
 
   ctx.save(); ctx.translate(-c, 0);
   // staff
   const up = me?.up || {};
-  if (up.appraise) drawPerson(ctx, 348, FLOOR, STAFF.appraise, 0, -1, { monocle: true, tie: '#2d4a8a' });
+  if (up.appraise) drawBot(ctx, 348, FLOOR, { body: '#c9ced8', eye: '#4fe0d0' }, -1, t, { monocle: true });
   if (up.haggler) drawPerson(ctx, 262, FLOOR - 2, STAFF.haggler, 0, -1, { tie: '#d6453d' });
   if (up.sales) drawPerson(ctx, 500, FLOOR, STAFF.sales, Math.floor(t / 900) % 3 === 0 ? 0 : 0, Math.floor(t / 2400) % 2 ? 1 : -1, { badge: true });
   if (up.restore) drawPerson(ctx, 732, FLOOR, STAFF.restore, 0, 1, { apron: '#6b3d22', glasses: true });
-  if (up.security >= 3) drawPerson(ctx, 220, FLOOR, STAFF.guard, 0, 1, { hat: '#2d3a5c', badge: true });
+  if (up.security >= 3) drawBot(ctx, 220, FLOOR, { body: '#3f5a8a', eye: '#ff4a5a', light: '#ff4a5a' }, 1, t, { badge: true });
   // customers
-  for (const n of npcs) drawPerson(ctx, n.x, FLOOR, n.look, n.frame, n.dir, { carry: n.leaving ? n.carry : null });
+  for (const n of npcs) drawCustomer(n, t);
   // keeper
   drawPerson(ctx, keeper.x, FLOOR, KEEPER(me?.color), keeper.frame, keeper.dir, { apron: '#efe0b8' });
   ctx.restore();
@@ -515,7 +518,7 @@ function render(t) {
   // bubbles
   ctx.save(); ctx.translate(-c, 0);
   if (npc && atCounter && cust && !cust.done) {
-    const msg = cust.st.msg || (v.phase === 'buy' ? `${money(cust.ask)}?` : `Got any ${cust.cat === 'any' ? 'good stuff' : cust.cat}?`);
+    const msg = cust.st.msg || (v.phase === 'buy' ? say(cust.prof, 'ask', { p: cust.ask }, seedOf(cust.id)) : say(cust.prof, 'want', { c: cust.cat === 'any' ? 'good stuff' : cust.cat }, seedOf(cust.id)));
     bubble(ctx, npc.x, FLOOR - 40, msg);
   }
   for (const n of npcs) if (n.leaving && n.say && n.x > 120) bubble(ctx, n.x, FLOOR - 40, n.say);
@@ -551,7 +554,49 @@ const STAFF = {
   restore: { skin: '#8d5a3b', hair: '#1d1d2a', shirt: '#7f8a3a', pants: '#5a4632', style: 3 },
   guard: { skin: '#f6d7c0', hair: '#5a3a22', shirt: '#2d4a8a', pants: '#2d3a5c', style: 0 },
 };
-const KEEPER = col => ({ skin: '#e0a77c', hair: '#3a2416', shirt: col || '#e8554e', pants: '#2d3a5c', style: 0 });
+const KEEPER = col => ({ skin: '#e0a77c', hair: '#3a2416', shirt: col || '#e8554e', pants: '#3a3d46', style: 0 });
+
+/* customer appearance by profile */
+function customerLook(prof, seed) {
+  const L = lookFromSeed(seed);
+  const pick = arr => arr[Math.abs(seed) % arr.length];
+  switch (PROFILES[prof]?.kind) {
+    case 'miner': return { ...L, hat: '#f2c14e', shirt: '#ec8a2f', pants: '#4a4d58' };
+    case 'tourist': return { ...L, shirt: pick(['#ff6fa8', '#4fe0d0', '#f5d94a', '#8cf06e']), hat: pick(['#f4efe6', null]), glasses: true };
+    case 'collector': return { ...L, hair: '#d9d4cc', shirt: '#6b3d22', pants: '#3b3646', style: 2, monocle: true };
+    case 'smuggler': return { ...L, shirt: '#2a2a3a', pants: '#1d1d2a', hat: '#3a3646', glasses: true };
+    case 'astro': return { suit: pick(['#e8ecf2', '#d8dde6']), accent: pick(['#ec8a2f', '#3f7fd6', '#d6453d']), visor: pick(['#2a4a8a', '#3a2a6a']) };
+    case 'prospector': return { suit: pick(['#ec8a2f', '#c9a26b']), accent: '#f2c14e', visor: '#b8892a' };
+    case 'grey': return { skin: pick(['#b8c4c0', '#a8b8c8', '#c4c0b8']), robe: pick(['#6a4ab0', '#2f5fe0', '#2fb5b0']) };
+    case 'glorp': return { body: pick(['#7bd85a', '#ff6fa8', '#4fe0d0', '#f5d94a']), seed: seed % 100 };
+    case 'zix': return { shell: pick(['#7d4fc9', '#2f8a8a', '#b8732a']), accent: pick(['#4fe0d0', '#f5d94a', '#ff6fa8']) };
+    default: return { ...L, shirt: pick(['#3f7fd6', '#2fb5b0', '#8c56c9', '#d6453d', '#555064', '#e8e2d4']) };
+  }
+}
+function drawCustomer(n, t) {
+  const extra = { carry: n.leaving ? n.carry : null };
+  switch (PROFILES[n.prof]?.kind) {
+    case 'astro': case 'prospector': return drawAstronaut(ctx, n.x, FLOOR, n.look, n.frame, n.dir, extra);
+    case 'grey': return drawGrey(ctx, n.x, FLOOR, n.look, n.frame, n.dir, extra);
+    case 'glorp': return drawGlorp(ctx, n.x, FLOOR, n.look, n.frame, n.dir, extra, t);
+    case 'zix': return drawZix(ctx, n.x, FLOOR, n.look, n.frame, n.dir, extra, t);
+    default: return drawPerson(ctx, n.x, FLOOR, n.look, n.frame, n.dir, { ...extra, monocle: n.look.monocle, glasses: n.look.glasses });
+  }
+}
+function whoHtml(c) {
+  const P = PROFILES[c.prof];
+  if (!P) return '';
+  return `<div class="who"><span class="who-name">${esc(P.name)}</span><span class="who-tell">${esc(P.tell)}</span></div>`;
+}
+const EVENT_FLAVOR = {
+  hot: ['A cruise liner just docked. {c} are in demand.', 'Collectors are in town. {c} are hot this sol.', 'The colony newsfeed is hyping {c}.'],
+  cold: ['A cargo hauler flooded the market. {c} are in a slump.', 'Nobody wants {c} this sol.', 'Dust storm warnings. {c} are cheap today.'],
+};
+function eventLine(e, day) {
+  if (!e) return 'Sellers are lining up at the airlock';
+  const arr = EVENT_FLAVOR[e.mod > 1 ? 'hot' : 'cold'];
+  return arr[day % arr.length].replace('{c}', e.cat);
+}
 
 /* ---------------------------------------------------------------- HUD/UI --- */
 
@@ -578,7 +623,7 @@ function ui(t) {
   lastUiT = t;
 
   const phaseNames = { dawn: 'MORNING', buy: 'BUYING', noon: 'MIDDAY', sell: 'SELLING', evening: 'EVENING', over: 'CLOSED' };
-  $('#hud-day').textContent = v.maxDays ? `DAY ${v.day}/${v.maxDays}` : `DAY ${v.day}`;
+  $('#hud-day').textContent = v.maxDays ? `SOL ${v.day}/${v.maxDays}` : `SOL ${v.day}`;
   let phTxt = phaseNames[ph] || '';
   if (ph === 'evening' && v.left) phTxt += ` ${Math.ceil(remain(v.left) / 1000)}s`;
   $('#hud-phase').textContent = phTxt;
@@ -593,7 +638,7 @@ function ui(t) {
   const eb = $('#event-banner');
   if (v.event && ph !== 'over') {
     const hot = v.event.mod > 1;
-    eb.innerHTML = `<span class="${hot ? 'hot' : 'cold'}">${esc(v.event.cat)} ${hot ? 'in demand' : 'slump'}</span> today`;
+    eb.innerHTML = `<span class="${hot ? 'hot' : 'cold'}">${esc(v.event.cat)} ${hot ? 'in demand' : 'slump'}</span> this sol`;
   } else eb.innerHTML = '';
 
   // rivals
@@ -608,9 +653,8 @@ function ui(t) {
 
   // phase card
   if (ph === 'dawn') {
-    const sub = v.event ? `${v.event.cat} ${v.event.mod > 1 ? 'are in demand today' : 'are in a slump today'}` : 'Sellers are lining up';
-    showCard(`DAY ${v.day}`, sub);
-  } else if (ph === 'noon') showCard('AFTERNOON', 'Buyers are coming in');
+    showCard(`SOL ${v.day}`, eventLine(v.event, v.day));
+  } else if (ph === 'noon') showCard('AFTERNOON', 'Buyers are cycling through the airlock');
   else if (cardUntil && performance.now() > cardUntil) hideCard();
   else if (!cardUntil && !$('#card').hidden) hideCard();
 
@@ -735,8 +779,9 @@ function buyHtml(v, c) {
   const full = v.me.inv.length >= v.me.cap;
   const def = offerVal[c.id] ?? String(Math.max(1, Math.round(Math.min(c.ask * 0.6, (e.lo + e.hi) / 2 * 0.55))));
   offerVal[c.id] = def;
-  const lim = 3 + Math.floor(v.me.up.haggler / 2) + (v.me.up.haggler >= 3 ? 1 : 0);
+  const lim = c.lim;
   return `
+    ${whoHtml(c)}
     <div class="item-head"><img class="icon" src="${itemIcon(c.itemId)}" alt="">
       <div><div class="item-name">${esc(it.n)}</div>
       <div class="meta">${it.cat} &middot; ${COND[c.cond].n} &middot; ${tierTag(e.tier)}</div></div></div>
@@ -774,13 +819,14 @@ function sellHtml(v, c) {
   const ct = c.st.counter;
   const ctItem = ct && v.me.inv.find(i => i.uid === ct.uid);
   return `
-    <div class="lbl" style="margin-top:0">Buyer wants</div>
+    ${whoHtml(c)}
+    <div class="lbl">Wants</div>
     <div class="item-name" style="color:var(--gold)">${c.cat === 'any' ? 'Anything good' : esc(c.cat)}</div>
     <div class="hint" data-p="hint">${esc(c.hint || '')}</div>
     <div class="timer"><i></i></div>
     <div class="excl"></div>
     <div class="say" data-p="say">${esc(c.st.msg || '')}</div>
-    ${strikesHtml(c.st.strikes)}
+    ${strikesHtml(c.st.strikes, c.lim)}
     ${el.length ? `<div class="pick-list">${el.map(i => `
       <button class="pick ${i.uid === pickUid[c.id] ? 'on' : ''}" data-uid="${i.uid}">
         <img class="icon sm" src="${itemIcon(i.id, 3)}" alt="">
@@ -866,7 +912,7 @@ function renderUpg(force) {
       const lvl = v.me.up[u.id], max = u.cost.length, cost = u.cost[lvl];
       const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
       return `<div class="upg">
-        <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">STAFF ${money(u.wage)}/DAY PER LVL</span>` : ''}</div>
+        <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">STAFF ${money(u.wage)}/SOL PER LVL</span>` : ''}</div>
         <div class="ds">${esc(u.desc)}</div>
         <button class="btn ${lvl < max ? 'primary' : ''}" data-up="${u.id}" ${!eve || lvl >= max || cost > v.me.cash ? 'disabled' : ''}>${lvl >= max ? 'MAX' : money(cost)}</button>
       </div>`;
@@ -891,7 +937,7 @@ function renderEvening() {
   if (!s) { el.innerHTML = ''; return; }
   const line = (l, r, cls = '') => `<div class="line"><span>${l}</span><span class="${cls}">${r}</span></div>`;
   const net = v.me.cash - s.startCash;
-  el.innerHTML = `${closeBtn}<h2>Day ${v.day} books</h2>
+  el.innerHTML = `${closeBtn}<h2>Sol ${v.day} books</h2>
     <div class="sum-grid">
       <div class="col"><h3>BOUGHT</h3>${s.bought.length ? s.bought.map(b => line(esc(ITEMS[b.id].n), money(b.price))).join('') : '<div class="meta">Nothing</div>'}</div>
       <div class="col"><h3>SOLD</h3>${s.sold.length ? s.sold.map(b => line(esc(ITEMS[b.id].n), `${money(b.price)} (${b.price - b.paid >= 0 ? '+' : ''}${money(b.price - b.paid)})`, b.price >= b.paid ? 'p' : 'n')).join('') : '<div class="meta">Nothing</div>'}

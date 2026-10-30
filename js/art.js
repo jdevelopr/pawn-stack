@@ -1,5 +1,5 @@
 /**
- * art.js — all pixel drawing. Everything is drawn at integer coordinates on a
+ * art.js - all pixel drawing (Mars, 2149). Everything is drawn at integer coordinates on a
  * 384x216 canvas that CSS scales by a whole number, so every pixel lands on the grid.
  */
 import { drawItem, ITEMS } from './items.js';
@@ -150,110 +150,158 @@ export function drawPerson(ctx, x, y, L, frame = 0, dir = 1, extra = {}) {
 }
 
 /* ---------------------------------------------------------------- scene --- */
+// Mars sky: butterscotch by day, and famously blue at sunset.
 const SKY = {
-  dawn: ['#f7b267', '#f4845f', '#c56a8a', '#6d5a8f'],
-  buy: ['#9fd8ff', '#7cc6f2', '#62afe6', '#4d93cf'],
-  noon: ['#a9e0ff', '#86cff7', '#6cbcec', '#57a5dd'],
-  sell: ['#ffd38a', '#f7b267', '#e98a6a', '#b06a7e'],
-  evening: ['#3a2f6b', '#2a2457', '#1c1a40', '#12122b'],
-  lobby: ['#9fd8ff', '#7cc6f2', '#62afe6', '#4d93cf'],
-  over: ['#3a2f6b', '#2a2457', '#1c1a40', '#12122b'],
+  dawn: ['#e9a07a', '#d98a72', '#a86a7e', '#5a4a7a'],
+  buy: ['#f2c79a', '#e8b48a', '#dca27c', '#cf906e'],
+  noon: ['#f6cfa2', '#ecbb90', '#e0a982', '#d49674'],
+  sell: ['#d9a07a', '#b88a8a', '#7f8fb8', '#5f84c8'],
+  evening: ['#241a44', '#1b1538', '#130f2a', '#0c0a1e'],
+  lobby: ['#f2c79a', '#e8b48a', '#dca27c', '#cf906e'],
+  over: ['#241a44', '#1b1538', '#130f2a', '#0c0a1e'],
 };
 
 function rng(seed) { let s = seed; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
-const BUILDINGS = (() => {
-  const r = rng(7); const out = []; let x = -40;
-  while (x < 520) { const w = 30 + ((r() * 30) | 0); out.push({ x, w, h: 50 + ((r() * 70) | 0), c: ['#4a4568', '#56507a', '#3e3a5a', '#5e5780'][(r() * 4) | 0] }); x += w + 4; }
+const MESAS = (() => {
+  const r = rng(11); const out = []; let x = -60;
+  while (x < 560) { const w = 40 + ((r() * 60) | 0); out.push({ x, w, h: 24 + ((r() * 44) | 0), step: 4 + ((r() * 8) | 0) }); x += w - 10; }
   return out;
 })();
+const DOMES = [{ x: 20, r: 26 }, { x: 96, r: 16 }, { x: 150, r: 34 }, { x: 250, r: 20 }, { x: 330, r: 28 }, { x: 430, r: 18 }];
+const ROCKS = (() => { const r = rng(5); return Array.from({ length: 22 }, () => ({ x: (r() * 196) | 0, y: FLOOR + 2 + ((r() * 28) | 0), w: 2 + ((r() * 5) | 0) })); })();
 
 function rect(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
+function disc(ctx, cx, cy, r, c) { for (let dy = -r; dy <= r; dy++) { const w = Math.round(Math.sqrt(r * r - dy * dy)); rect(ctx, cx - w, cy + dy, w * 2, 1, c); } }
+function dome(ctx, cx, base, r, c, glass) {
+  for (let dy = 0; dy <= r; dy++) { const w = Math.round(Math.sqrt(r * r - dy * dy)); rect(ctx, cx - w, base - dy, w * 2, 1, c); }
+  for (let dy = 2; dy <= r - 2; dy++) { const w = Math.round(Math.sqrt((r - 2) * (r - 2) - dy * dy)); rect(ctx, cx - w, base - dy, w * 2, 1, glass); }
+  rect(ctx, cx - r, base, r * 2, 2, c);
+}
 
 export function drawScene(ctx, cam, S) {
   const phase = S.phase || 'buy';
   const night = phase === 'evening' || phase === 'over';
-  // sky in bands
+  const t = S.t || 0;
   const sky = SKY[phase] || SKY.buy;
   const bh = Math.ceil(FLOOR / sky.length);
   sky.forEach((c, i) => rect(ctx, 0, i * bh, W, bh, c));
-  if (night) { const r = rng(3); for (let i = 0; i < 40; i++) rect(ctx, (r() * W) | 0, (r() * 110) | 0, 1, 1, '#fff6d8'); }
-  // buildings, parallax 0.5
-  const px = Math.round(cam * 0.5);
-  for (const b of BUILDINGS) {
-    const bx = b.x - px;
-    if (bx > W || bx + b.w < 0) continue;
-    rect(ctx, bx, FLOOR - b.h, b.w, b.h, b.c);
-    for (let wy = FLOOR - b.h + 6; wy < FLOOR - 12; wy += 10)
-      for (let wx = bx + 4; wx < bx + b.w - 5; wx += 8)
-        rect(ctx, wx, wy, 4, 5, night ? ((wx * 7 + wy) % 3 ? '#f7d774' : '#2e2a46') : '#9ab6d8');
+  if (night || phase === 'dawn') {
+    const r = rng(3);
+    for (let i = 0; i < 60; i++) rect(ctx, (r() * W) | 0, (r() * 120) | 0, 1, 1, i % 7 ? '#fff6d8' : '#a0d8ff');
+  }
+  // sun, moons, and a tiny blue Earth
+  const sx = 40 - Math.round(cam * 0.05);
+  if (night) {
+    disc(ctx, sx + 40, 30, 5, '#c9b8a0'); rect(ctx, sx + 38, 28, 2, 2, '#a89880');   // Phobos
+    disc(ctx, sx + 110, 52, 3, '#d8c8b0');                                          // Deimos
+    rect(ctx, sx + 160, 40, 2, 2, '#5fb0ff'); rect(ctx, sx + 161, 39, 1, 1, '#c0e4ff'); // Earth
+  } else if (phase !== 'sell') {
+    disc(ctx, sx + 120, phase === 'dawn' ? 90 : 34, 5, '#fff2d6');
+  } else disc(ctx, sx + 140, 110, 5, '#e6f0ff');
+  // far mesas, parallax 0.3
+  const p1 = Math.round(cam * 0.3);
+  const mesa = night ? '#3a2438' : phase === 'sell' ? '#8a5a5a' : '#b8664a';
+  const mesaD = night ? '#2a1a2a' : phase === 'sell' ? '#6a4448' : '#9a5038';
+  for (const m of MESAS) {
+    const mx = m.x - p1;
+    if (mx > W || mx + m.w < 0) continue;
+    rect(ctx, mx + m.step, FLOOR - m.h, m.w - m.step * 2, m.h, mesa);
+    rect(ctx, mx, FLOOR - m.h + m.step, m.w, m.h - m.step, mesa);
+    rect(ctx, mx, FLOOR - m.h + m.step + 6, m.w, 2, mesaD);
+  }
+  // colony domes, parallax 0.55
+  const p2 = Math.round(cam * 0.55);
+  for (const d of DOMES) {
+    const dx = d.x - p2;
+    if (dx + d.r < 0 || dx - d.r > W) continue;
+    dome(ctx, dx, FLOOR - 4, d.r, night ? '#4a4a64' : '#c8ccd8', night ? '#3a5a8a' : '#9fd0e8');
+    for (let i = -d.r + 6; i < d.r - 6; i += 7) rect(ctx, dx + i, FLOOR - 9, 3, 3, night ? ((i + d.x) % 3 ? '#ffd27a' : '#6ef0e0') : '#e8f4ff');
   }
   ctx.save();
   ctx.translate(-cam, 0);
-  // street
-  rect(ctx, -10, FLOOR, 216, 10, '#8f8a96');
-  for (let x = 0; x < 206; x += 16) rect(ctx, x, FLOOR, 1, 10, '#6f6a78');
-  rect(ctx, -10, FLOOR + 10, 216, H - FLOOR - 10, '#3b3843');
-  for (let x = 4; x < 206; x += 28) rect(ctx, x, FLOOR + 21, 14, 2, '#e8e2d4');
-  // lamp post
-  rect(ctx, 96, 112, 3, 72, '#2e2a3a'); rect(ctx, 90, 106, 15, 7, '#2e2a3a');
-  rect(ctx, 92, 113, 11, 3, night ? '#ffe48a' : '#cfd6de');
-  if (night) { ctx.fillStyle = 'rgba(255,228,138,0.12)'; ctx.fillRect(80, 116, 36, 68); }
+  // regolith
+  rect(ctx, -10, FLOOR, 218, H - FLOOR, night ? '#5a2e26' : '#b65a3a');
+  rect(ctx, -10, FLOOR, 218, 2, night ? '#6e3a2e' : '#d0744c');
+  for (const r of ROCKS) rect(ctx, r.x, r.y, r.w, 2, night ? '#43221c' : '#8e4228');
+  // landing pad and beacon
+  rect(ctx, 40, FLOOR + 6, 80, 3, '#5d616e'); for (let x = 42; x < 118; x += 8) rect(ctx, x, FLOOR + 6, 4, 3, '#f2c14e');
+  rect(ctx, 96, 120, 2, 64, '#3a3646'); rect(ctx, 92, 116, 10, 4, '#3a3646');
+  rect(ctx, 96, 112, 2, 4, '#8f949e');
+  if (Math.floor(t / 600) % 2) { rect(ctx, 95, 110, 4, 3, '#ff4a5a'); if (night) { ctx.fillStyle = 'rgba(255,74,90,0.18)'; ctx.fillRect(89, 104, 16, 14); } }
+  else rect(ctx, 95, 110, 4, 3, '#7a2a30');
+  // parked rover
+  rect(ctx, 20, 164, 38, 12, O); rect(ctx, 21, 165, 36, 10, '#e8e2d4'); rect(ctx, 40, 157, 16, 9, O); rect(ctx, 41, 158, 14, 7, '#7cc6f2');
+  rect(ctx, 22, 168, 34, 2, '#ec8a2f');
+  for (const wx of [24, 36, 48]) { rect(ctx, wx, 174, 8, 8, O); rect(ctx, wx + 2, 176, 4, 4, '#5d616e'); }
 
-  // shop exterior wall + sign
-  rect(ctx, 196, 0, 12, 140, '#7a3f2a');
-  for (let y = 4; y < 140; y += 8) rect(ctx, 196, y, 12, 1, '#5e2f20');
-  rect(ctx, 194, 138, 16, 4, '#3a2a24');
-  drawSign(ctx, S.signLevel || 0, night);
+  // shop hull + neon sign
+  rect(ctx, 194, 0, 14, 140, '#5d616e');
+  for (let y = 6; y < 140; y += 10) { rect(ctx, 194, y, 14, 1, '#4a4d58'); rect(ctx, 196, y + 3, 1, 1, '#8f949e'); rect(ctx, 205, y + 3, 1, 1, '#8f949e'); }
+  drawSign(ctx, S.signLevel || 0, night, t);
 
-  // interior back wall
-  const wall = '#c9b48f', stripe = '#bba57d';
-  rect(ctx, 208, 14, WORLD_W - 208, 126, wall);
-  for (let x = 212; x < WORLD_W; x += 10) rect(ctx, x, 14, 3, 126, stripe);
-  rect(ctx, 208, 14, WORLD_W - 208, 3, '#8a6a46');
-  rect(ctx, 208, 0, WORLD_W - 208, 14, '#3a2a30');
-  rect(ctx, 208, 136, WORLD_W - 208, 48, '#7a4a2c');
-  rect(ctx, 208, 136, WORLD_W - 208, 3, '#9a6a3c');
-  for (let x = 220; x < WORLD_W; x += 30) { rect(ctx, x, 144, 22, 34, '#6a3e24'); rect(ctx, x, 144, 22, 1, '#8a5a34'); }
-  // floor
-  rect(ctx, 208, FLOOR, WORLD_W - 208, H - FLOOR, '#8a5a34');
-  for (let y = FLOOR; y < H; y += 6) {
-    rect(ctx, 208, y, WORLD_W - 208, 1, '#6a4226');
-    for (let x = 208 + ((y / 6) % 2) * 20; x < WORLD_W; x += 40) rect(ctx, x, y, 1, 6, '#6a4226');
+  // interior back wall: metal panels
+  rect(ctx, 208, 0, WORLD_W - 208, 14, '#1c1f2e');
+  rect(ctx, 208, 14, WORLD_W - 208, 126, '#3e4a5e');
+  for (let x = 208; x < WORLD_W; x += 32) {
+    rect(ctx, x, 14, 1, 126, '#2c3546');
+    rect(ctx, x + 3, 18, 1, 1, '#6a7890'); rect(ctx, x + 28, 18, 1, 1, '#6a7890');
+    rect(ctx, x + 3, 132, 1, 1, '#6a7890'); rect(ctx, x + 28, 132, 1, 1, '#6a7890');
   }
-  // door frame (open doorway)
-  rect(ctx, 196, 140, 3, 44, '#3a2a24'); rect(ctx, 205, 140, 3, 44, '#3a2a24');
-  // window on wall behind counter
-  rect(ctx, 222, 40, 40, 44, O); rect(ctx, 224, 42, 36, 40, sky[1]); rect(ctx, 241, 42, 2, 40, O); rect(ctx, 224, 61, 36, 2, O);
-  // hanging lights
+  rect(ctx, 208, 22, WORLD_W - 208, 3, '#2c3546'); rect(ctx, 208, 23, WORLD_W - 208, 1, '#55657e'); // conduit
+  rect(ctx, 208, 14, WORLD_W - 208, 2, '#6a7890');
+  rect(ctx, 208, 136, WORLD_W - 208, 48, '#2c3546');
+  rect(ctx, 208, 136, WORLD_W - 208, 2, night ? '#4fe0d0' : '#55657e');
+  for (let x = 216; x < WORLD_W; x += 24) { rect(ctx, x, 146, 16, 30, '#252d3c'); rect(ctx, x, 146, 16, 1, '#3e4a5e'); }
+  // floor: grating
+  rect(ctx, 208, FLOOR, WORLD_W - 208, H - FLOOR, '#4a4d58');
+  rect(ctx, 208, FLOOR, WORLD_W - 208, 2, '#6b6f7a');
+  for (let y = FLOOR + 4; y < H; y += 4) rect(ctx, 208, y, WORLD_W - 208, 1, '#3a3d46');
+  for (let x = 210; x < WORLD_W; x += 6) rect(ctx, x, FLOOR + 2, 1, H - FLOOR, '#3a3d46');
+  // airlock door frame with hazard stripes
+  rect(ctx, 194, 140, 4, 44, '#2a2d38'); rect(ctx, 204, 140, 4, 44, '#2a2d38');
+  for (let y = 140; y < 184; y += 6) { rect(ctx, 194, y, 4, 3, '#f2c14e'); rect(ctx, 204, y + 3, 4, 3, '#f2c14e'); }
+  rect(ctx, 192, 136, 18, 4, '#2a2d38'); rect(ctx, 198, 137, 6, 2, night ? '#6ef06e' : '#3a8a3a');
+  // porthole behind the counter
+  disc(ctx, 244, 62, 21, O); disc(ctx, 244, 62, 19, '#8f949e'); disc(ctx, 244, 62, 16, O); disc(ctx, 244, 62, 15, sky[2]);
+  if (!night) { rect(ctx, 230, 66, 28, 11, mesa); rect(ctx, 236, 62, 14, 4, mesa); } else { rect(ctx, 238, 54, 1, 1, '#fff6d8'); rect(ctx, 250, 60, 1, 1, '#fff6d8'); rect(ctx, 242, 70, 2, 2, '#c9b8a0'); }
+  rect(ctx, 236, 50, 3, 2, 'rgba(255,255,255,0.5)');
+  for (const [bx, by] of [[244, 42], [264, 62], [244, 82], [224, 62]]) rect(ctx, bx - 1, by - 1, 2, 2, '#c9ced8');
+  // strip lights
   for (const lx of [300, 470, 640, 860]) {
-    rect(ctx, lx, 14, 1, 14, '#2a2230'); rect(ctx, lx - 5, 28, 11, 4, '#2a2230');
-    rect(ctx, lx - 3, 32, 7, 2, night ? '#ffe48a' : '#e8e2d4');
+    rect(ctx, lx - 14, 14, 28, 4, '#1c1f2e');
+    rect(ctx, lx - 12, 18, 24, 2, night ? '#bff8f0' : '#e8f4ff');
+    if (night) { ctx.fillStyle = 'rgba(110,240,224,0.07)'; ctx.fillRect(lx - 20, 20, 40, 40); }
   }
-  // section divider into office
-  rect(ctx, 786, 14, 8, 30, '#6a3e24'); rect(ctx, 786, 44, 8, 2, O);
+  // office bulkhead
+  rect(ctx, 786, 14, 8, 34, '#2c3546'); rect(ctx, 786, 48, 8, 2, '#f2c14e');
 
-  // shelves
-  drawShelves(ctx, S.inv || []);
-  // workbench
-  rect(ctx, 700, 70, 64, 40, '#a28a64');
-  for (let y = 74; y < 108; y += 6) for (let x = 704; x < 762; x += 6) rect(ctx, x, y, 1, 1, '#7d6a4a');
-  rect(ctx, 708, 78, 2, 14, '#6b6f7a'); rect(ctx, 706, 76, 6, 3, '#6b6f7a');
-  rect(ctx, 724, 80, 12, 3, '#d6453d'); rect(ctx, 729, 83, 2, 10, '#6b3d22');
-  rect(ctx, 746, 76, 3, 18, '#8f949e');
-  rect(ctx, 698, 158, 70, 6, '#6b3d22'); rect(ctx, 702, 164, 4, 20, '#4a2a16'); rect(ctx, 758, 164, 4, 20, '#4a2a16');
-  if ((S.up?.restore || 0) > 0) { rect(ctx, 716, 150, 14, 8, '#b8733a'); rect(ctx, 740, 152, 10, 6, '#8f949e'); }
+  drawShelves(ctx, S.inv || [], night);
 
-  // office: cork board, desk, phone, safe
-  rect(ctx, 822, 56, 76, 54, O); rect(ctx, 824, 58, 72, 50, '#b78b54');
-  const notes = ['#fff6a0', '#a0e8ff', '#ffb0c8', '#c8ffb0', '#fff6a0', '#ffd0a0'];
-  notes.forEach((c, i) => { const nx = 830 + (i % 3) * 22, ny = 62 + ((i / 3) | 0) * 22; rect(ctx, nx, ny, 16, 16, c); rect(ctx, nx + 7, ny + 1, 2, 2, '#d6453d'); rect(ctx, nx + 3, ny + 7, 10, 1, '#8a8174'); rect(ctx, nx + 3, ny + 10, 8, 1, '#8a8174'); });
-  pixelText(ctx, 'UPGRADES', 844, 48, '#3a2a30');
-  rect(ctx, 850, 158, 70, 5, '#5a3a22'); rect(ctx, 854, 163, 4, 21, '#3a2416'); rect(ctx, 912, 163, 4, 21, '#3a2416');
-  rect(ctx, 860, 152, 12, 6, '#2a2230'); rect(ctx, 858, 150, 16, 3, '#2a2230');
-  rect(ctx, 890, 146, 18, 12, '#3a3646'); rect(ctx, 892, 148, 14, 8, '#7cc6f2');
-  rect(ctx, 926, 152, 28, 32, '#4a4d58'); rect(ctx, 928, 154, 24, 28, '#5d616e'); rect(ctx, 936, 164, 8, 8, '#8f949e'); rect(ctx, 939, 167, 2, 2, O);
+  // workbench with tool rack
+  rect(ctx, 698, 70, 68, 42, O); rect(ctx, 700, 72, 64, 38, '#55657e');
+  for (let y = 76; y < 108; y += 6) for (let x = 704; x < 762; x += 6) rect(ctx, x, y, 1, 1, '#3e4a5e');
+  rect(ctx, 708, 78, 2, 16, '#c9ced8'); rect(ctx, 705, 76, 8, 3, '#c9ced8');
+  rect(ctx, 722, 80, 14, 4, '#ec8a2f'); rect(ctx, 734, 81, 4, 2, '#7cc6f2');
+  rect(ctx, 746, 76, 3, 20, '#8f949e'); rect(ctx, 745, 94, 5, 3, '#f2c14e');
+  rect(ctx, 698, 158, 70, 6, '#6b6f7a'); rect(ctx, 698, 158, 70, 1, '#9aa0ad');
+  rect(ctx, 702, 164, 4, 20, '#3a3d46'); rect(ctx, 758, 164, 4, 20, '#3a3d46');
+  if ((S.up?.restore || 0) > 0) { rect(ctx, 716, 150, 14, 8, '#c9ced8'); rect(ctx, 718, 152, 10, 4, '#4fe0d0'); rect(ctx, 740, 152, 10, 6, '#ec8a2f'); }
 
-  // security cameras
+  // office: holo upgrade board, desk with comm screen, vault
+  rect(ctx, 820, 54, 80, 58, O); rect(ctx, 822, 56, 76, 54, '#14202e');
+  for (let i = 0; i < 6; i++) {
+    const nx = 828 + (i % 3) * 23, ny = 62 + ((i / 3) | 0) * 24;
+    const c = ['#4fe0d0', '#ffb347', '#ff6fa8', '#8cf06e', '#7cc6f2', '#ffb347'][i];
+    rect(ctx, nx, ny, 18, 18, O); rect(ctx, nx + 1, ny + 1, 16, 16, '#1d2c3e');
+    rect(ctx, nx + 3, ny + 4, 12, 2, c); rect(ctx, nx + 3, ny + 9, 8, 1, c); rect(ctx, nx + 3, ny + 12, 10, 1, c);
+  }
+  if (Math.floor(t / 400) % 2) rect(ctx, 822, 56, 76, 1, '#4fe0d0');
+  pixelText(ctx, 'UPGRADES', 844, 46, '#4fe0d0');
+  rect(ctx, 850, 158, 70, 5, '#6b6f7a'); rect(ctx, 854, 163, 4, 21, '#3a3d46'); rect(ctx, 912, 163, 4, 21, '#3a3d46');
+  rect(ctx, 886, 144, 22, 14, O); rect(ctx, 887, 145, 20, 12, '#14202e'); rect(ctx, 889, 147, 16, 2, '#4fe0d0'); rect(ctx, 889, 151, 10, 1, '#4fe0d0');
+  rect(ctx, 860, 152, 10, 6, '#c9ced8'); rect(ctx, 862, 150, 6, 2, '#ff6fa8');
+  rect(ctx, 924, 150, 30, 34, O); rect(ctx, 925, 151, 28, 32, '#6b6f7a'); disc(ctx, 939, 166, 6, '#4a4d58'); disc(ctx, 939, 166, 3, '#9aa0ad'); rect(ctx, 938, 160, 2, 12, '#3a3d46');
+
   const sec = S.up?.security || 0;
   if (sec >= 1) drawCam(ctx, 232);
   if (sec >= 2) drawCam(ctx, 620);
@@ -262,34 +310,36 @@ export function drawScene(ctx, cam, S) {
 }
 
 function drawCam(ctx, x) {
-  rect(ctx, x, 14, 2, 4, '#2a2230'); rect(ctx, x - 4, 18, 10, 5, '#d8d2c4'); rect(ctx, x - 6, 19, 3, 3, '#2a2230');
-  rect(ctx, x + 4, 19, 1, 1, '#e0234e');
+  rect(ctx, x, 14, 2, 4, '#1c1f2e'); rect(ctx, x - 4, 18, 10, 5, '#c9ced8'); rect(ctx, x - 6, 19, 3, 3, '#1c1f2e');
+  rect(ctx, x + 4, 19, 1, 1, '#ff4a5a');
 }
 
-function drawSign(ctx, lvl, night) {
-  const x = 128, y = 94, w = 66, h = 22;
-  rect(ctx, 192, y + 4, 4, 2, '#2e2a3a'); rect(ctx, 192, y + h - 6, 4, 2, '#2e2a3a');
-  const frame = ['#6b3d22', '#8a5a34', '#c9a26b', '#d9a441', '#f2c14e', '#ffe48a'][lvl];
+function drawSign(ctx, lvl, night, t) {
+  const x = 104, y = 92, w = 90, h = 26;
+  rect(ctx, 190, y + 5, 4, 2, '#3a3646'); rect(ctx, 190, y + h - 7, 4, 2, '#3a3646');
+  const frame = ['#4a4d58', '#5d616e', '#8f949e', '#c9ced8', '#ffb347', '#4fe0d0'][lvl];
   rect(ctx, x, y, w, h, O); rect(ctx, x + 1, y + 1, w - 2, h - 2, frame);
-  rect(ctx, x + 3, y + 3, w - 6, h - 6, lvl >= 3 ? '#2a2457' : '#3a2a30');
-  const glow = night && lvl >= 2 ? '#ffe48a' : lvl >= 4 ? '#ffe48a' : '#efe0b8';
-  pixelText(ctx, 'PAWN', x + 6, y + 6, glow, 1);
-  pixelText(ctx, 'SHOP', x + 6, y + 12, glow, 1);
-  for (let i = 0; i < lvl; i++) rect(ctx, x + 30 + i * 6, y + 9, 4, 4, '#f2c14e');
-  // three balls, classic pawnbroker symbol
-  for (const [bx, by] of [[x + 50, y + 4], [x + 56, y + 4], [x + 53, y + 10]]) { rect(ctx, bx, by, 5, 5, O); rect(ctx, bx + 1, by + 1, 3, 3, '#f2c14e'); }
+  rect(ctx, x + 3, y + 3, w - 6, h - 6, '#14101e');
+  const flick = lvl === 0 && night && Math.floor(t / 900) % 5 === 0;
+  const glow = flick ? '#5a3040' : lvl >= 2 || night ? '#ff6f61' : '#d8a090';
+  pixelText(ctx, 'RED PLANET', x + 6, y + 6, glow, 1);
+  pixelText(ctx, 'PAWN', x + 6, y + 14, lvl >= 3 ? '#4fe0d0' : '#ffb347', 1);
+  for (let i = 0; i < lvl; i++) rect(ctx, x + 26 + i * 5, y + 15, 3, 3, '#ffb347');
+  // three planets, the pawnbroker's balls in orbit
+  for (const [bx, by, c] of [[x + 70, y + 5, '#ff6f61'], [x + 78, y + 5, '#ffb347'], [x + 74, y + 13, '#4fe0d0']]) { rect(ctx, bx, by, 6, 6, O); rect(ctx, bx + 1, by + 1, 4, 4, c); rect(ctx, bx + 1, by + 1, 1, 1, '#fff'); }
+  if (night && lvl >= 1) { ctx.fillStyle = 'rgba(255,111,97,0.10)'; ctx.fillRect(x - 4, y - 4, w + 8, h + 8); }
 }
 
 export const SHELF_SLOTS = [];
 for (const by of [112, 146, 180]) for (const ux of [370, 450, 530, 610]) for (const ix of [6, 27, 48]) SHELF_SLOTS.push([ux + ix, by - 14]);
 
-function drawShelves(ctx, inv) {
+function drawShelves(ctx, inv, night) {
   for (const ux of [370, 450, 530, 610]) {
-    rect(ctx, ux, 78, 3, 106, '#4a2a16'); rect(ctx, ux + 65, 78, 3, 106, '#4a2a16');
-    rect(ctx, ux + 3, 78, 62, 106, '#6b4228');
-    for (const by of [112, 146]) { rect(ctx, ux, by, 68, 4, '#8a5a34'); rect(ctx, ux, by + 4, 68, 1, '#3a2416'); }
-    rect(ctx, ux, 180, 68, 4, '#8a5a34');
-    rect(ctx, ux - 2, 74, 72, 4, '#8a5a34');
+    rect(ctx, ux, 78, 3, 106, '#2a2d38'); rect(ctx, ux + 65, 78, 3, 106, '#2a2d38');
+    rect(ctx, ux + 3, 78, 62, 106, '#252d3c');
+    for (const by of [112, 146]) { rect(ctx, ux, by, 68, 4, '#8f949e'); rect(ctx, ux, by + 3, 68, 1, night ? '#4fe0d0' : '#6b6f7a'); }
+    rect(ctx, ux, 180, 68, 4, '#8f949e');
+    rect(ctx, ux - 2, 74, 72, 4, '#8f949e'); rect(ctx, ux - 2, 77, 72, 1, '#ff6f61');
   }
   inv.slice(0, SHELF_SLOTS.length).forEach((it, i) => {
     const [x, y] = SHELF_SLOTS[i];
@@ -299,28 +349,157 @@ function drawShelves(ctx, inv) {
 
 export function drawCounterFront(ctx, cam, S) {
   ctx.save(); ctx.translate(-cam, 0);
-  // counter body
   rect(ctx, 242, 167, 90, 17, O);
-  rect(ctx, 243, 169, 88, 15, '#7a4a2c');
-  for (let x = 247; x < 328; x += 21) { rect(ctx, x, 172, 17, 10, '#6a3e24'); rect(ctx, x, 172, 17, 1, '#9a6a3c'); }
-  rect(ctx, 240, 164, 94, 4, '#a8743f'); rect(ctx, 240, 164, 94, 1, '#c9945a');
-  // glass case on counter front-left
-  // register
-  rect(ctx, 310, 148, 22, 16, O); rect(ctx, 311, 149, 20, 14, '#8a8f9c'); rect(ctx, 313, 151, 16, 7, '#2a3a2a');
-  if (S.registerText) pixelText(ctx, S.registerText, 314, 152, '#7bc96f');
-  rect(ctx, 313, 159, 3, 2, '#d8d2c4'); rect(ctx, 318, 159, 3, 2, '#d8d2c4'); rect(ctx, 323, 159, 3, 2, '#d8d2c4');
-  if (S.counterItem != null) drawItem(ctx, S.counterItem, 250, 150);
+  rect(ctx, 243, 169, 88, 15, '#4a4d58');
+  for (let x = 247; x < 328; x += 21) { rect(ctx, x, 172, 17, 10, '#3a3d46'); rect(ctx, x + 2, 175, 1, 1, '#9aa0ad'); rect(ctx, x + 14, 175, 1, 1, '#9aa0ad'); }
+  rect(ctx, 240, 164, 94, 4, '#9aa0ad'); rect(ctx, 240, 164, 94, 1, '#d8dde6');
+  rect(ctx, 243, 181, 88, 1, '#4fe0d0');
+  // holo-terminal
+  rect(ctx, 310, 146, 22, 18, O); rect(ctx, 311, 147, 20, 16, '#6b6f7a'); rect(ctx, 313, 149, 16, 8, '#0f1a24');
+  if (S.registerText) pixelText(ctx, S.registerText, 314, 151, '#4fe0d0');
+  rect(ctx, 313, 159, 3, 2, '#ffb347'); rect(ctx, 318, 159, 3, 2, '#4fe0d0'); rect(ctx, 323, 159, 3, 2, '#ff6f61');
+  if (S.counterItem != null) {
+    drawItem(ctx, S.counterItem, 250, 150);
+    ctx.fillStyle = 'rgba(79,224,208,0.18)'; ctx.fillRect(248, 162, 18, 2);
+  }
   ctx.restore();
 }
 
 export function drawNight(ctx, phase) {
   if (phase === 'evening' || phase === 'over') {
-    ctx.fillStyle = 'rgba(20,16,60,0.35)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(16,12,48,0.32)'; ctx.fillRect(0, 0, W, H);
   } else if (phase === 'dawn') {
-    ctx.fillStyle = 'rgba(255,150,80,0.10)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,140,100,0.08)'; ctx.fillRect(0, 0, W, H);
   } else if (phase === 'sell' || phase === 'noon') {
-    ctx.fillStyle = 'rgba(255,200,120,0.06)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(120,150,255,0.05)'; ctx.fillRect(0, 0, W, H);
   }
+}
+
+/* ------------------------------------------------------- crew & aliens --- */
+
+/** Spacesuit with a bubble helmet. 14x34, feet at (x, y). */
+export function drawAstronaut(ctx, x, y, L, frame = 0, dir = 1, extra = {}) {
+  const X = Math.round(x) - 7, Y = Math.round(y) - 34;
+  const r = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X + a, Y + b, w, h); };
+  const f = dir > 0;
+  const suit = L.suit || '#e8ecf2', sd = shadeHex(suit, 0.78), acc = L.accent || '#ec8a2f';
+  const lx = frame === 1 ? 2 : frame === 2 ? 4 : 3, rx = frame === 1 ? 9 : frame === 2 ? 7 : 8;
+  r(f ? -2 : 12, 13, 5, 11, O); r(f ? -1 : 12, 14, 3, 9, '#9aa0ad'); r(f ? -1 : 12, 15, 3, 1, acc);
+  for (const [lgx, back] of [[f ? lx : rx, true], [f ? rx : lx, false]]) {
+    r(lgx - 1, 24, 5, 10, O); r(lgx, 24, 3, 7, back ? sd : suit); r(lgx - 1 + (f ? 1 : 0), 31, 4, 2, '#5d616e');
+  }
+  r(0, 12, 14, 13, O); r(1, 13, 12, 11, suit); r(f ? 1 : 12, 13, 1, 11, sd);
+  r(1, 18, 12, 2, acc); r(f ? 8 : 3, 14, 3, 3, '#4fe0d0'); r(f ? 9 : 4, 15, 1, 1, '#ff6f61');
+  const sw = frame === 1 ? 1 : frame === 2 ? -1 : 0, ax = (f ? 7 : 5) + sw;
+  r(ax - 1, 13, 4, 11, O); r(ax, 14, 2, 7, sd); r(ax - 1 + 1, 21, 2, 3, '#9aa0ad');
+  // helmet
+  r(2, -1, 10, 14, O); r(1, 0, 12, 12, O);
+  r(2, 0, 10, 12, '#e8ecf2'); r(3, 0, 8, 1, '#ffffff');
+  r(f ? 4 : 2, 3, 8, 7, O); r(f ? 5 : 3, 4, 6, 5, L.visor || '#2a4a8a');
+  r(f ? 6 : 4, 5, 2, 1, 'rgba(255,255,255,0.8)');
+  if (L.faceVisible) { r(f ? 8 : 5, 6, 1, 1, '#211a2b'); }
+  r(f ? 2 : 11, -4, 1, 4, '#8f949e'); r(f ? 2 : 11, -5, 1, 1, '#ff4a5a');
+  if (extra.carry != null) drawItem(ctx, extra.carry, Math.round(x) - 7, Y - 18);
+}
+
+/** Grey: big head, huge black eyes, thin robed body. */
+export function drawGrey(ctx, x, y, L, frame = 0, dir = 1, extra = {}) {
+  const X = Math.round(x) - 7, Y = Math.round(y) - 35;
+  const r = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X + a, Y + b, w, h); };
+  const f = dir > 0, skin = L.skin || '#b8c4c0', sk = shadeHex(skin, 0.78), robe = L.robe || '#6a4ab0';
+  const lx = frame === 1 ? 4 : frame === 2 ? 6 : 5, rx = frame === 1 ? 9 : frame === 2 ? 7 : 8;
+  for (const lg of [lx, rx]) { r(lg - 1, 27, 3, 8, O); r(lg, 27, 1, 7, sk); }
+  r(3, 15, 9, 13, O); r(4, 16, 7, 11, robe); r(4, 22, 7, 1, '#ffb347'); r(f ? 4 : 10, 16, 1, 11, shadeHex(robe, 0.75));
+  const ax = (f ? 8 : 5) + (frame === 1 ? 1 : frame === 2 ? -1 : 0);
+  r(ax - 1, 16, 3, 11, O); r(ax, 17, 1, 9, sk); r(ax - 1, 26, 3, 1, skin);
+  // head
+  r(1, 0, 13, 12, O); r(0, 2, 15, 7, O); r(3, 11, 9, 3, O); r(5, 13, 5, 2, O);
+  r(2, 1, 11, 10, skin); r(1, 3, 13, 5, skin); r(4, 11, 7, 2, skin); r(6, 13, 3, 1, sk);
+  r(3, 1, 6, 1, shadeHex(skin, 1.12));
+  const ex = f ? 7 : 2;
+  r(ex, 4, 5, 4, '#0d0b14'); r(ex + (f ? 1 : 0), 8, 4, 1, '#0d0b14');
+  r(ex + (f ? 1 : 3), 5, 1, 1, '#a0e8ff');
+  r(f ? 4 : 8, 6, 2, 3, '#0d0b14');
+  r(f ? 10 : 4, 11, 2, 1, sk);
+  if (extra.carry != null) drawItem(ctx, extra.carry, Math.round(x) - 7, Y - 16);
+}
+
+/** Glorp: a wobbly gel blob with eye stalks. No legs; it oozes. */
+export function drawGlorp(ctx, x, y, L, frame = 0, dir = 1, extra = {}, t = 0) {
+  const body = L.body || '#7bd85a', bd = shadeHex(body, 0.72), bl = shadeHex(body, 1.2);
+  const wob = Math.round(Math.sin(t / 160 + (L.seed || 0)) * (frame ? 1.5 : 0.8));
+  const h = 20 + wob, w = 18 - wob;
+  const X = Math.round(x) - Math.round(w / 2), base = Math.round(y);
+  for (let i = 0; i < h; i++) {
+    const k = i < 7 ? [0.45, 0.65, 0.78, 0.86, 0.92, 0.96, 1][i] : 1;
+    const rw = Math.max(4, Math.round(w * k));
+    const rx = X + Math.round((w - rw) / 2), ry = base - h + i;
+    ctx.fillStyle = O; ctx.fillRect(rx, ry, rw, 1);
+    if (i > 0 && i < h - 1) { ctx.fillStyle = i > h - 5 ? bd : body; ctx.fillRect(rx + 1, ry, rw - 2, 1); }
+  }
+  ctx.fillStyle = bl; ctx.fillRect(X + 4, base - h + 3, 3, 2); ctx.fillRect(X + 3, base - h + 5, 1, 3);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(X + 5, base - h + 9, 2, 2); ctx.fillRect(X + w - 6, base - 8, 2, 2);
+  // eye stalks
+  const f = dir > 0;
+  for (const [sx, sh] of [[X + 5, 6], [X + w - 7, 8]]) {
+    ctx.fillStyle = O; ctx.fillRect(sx, base - h - sh, 3, sh + 1);
+    ctx.fillStyle = body; ctx.fillRect(sx + 1, base - h - sh + 1, 1, sh);
+    ctx.fillStyle = O; ctx.fillRect(sx - 1, base - h - sh - 4, 5, 5);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(sx, base - h - sh - 3, 3, 3);
+    ctx.fillStyle = '#0d0b14'; ctx.fillRect(sx + (f ? 2 : 0), base - h - sh - 2, 1, 1);
+  }
+  // mouth
+  ctx.fillStyle = O; ctx.fillRect(X + Math.round(w / 2) - 3 + (f ? 2 : -2), base - 9, 6, 1); ctx.fillRect(X + Math.round(w / 2) - 4 + (f ? 2 : -2), base - 10, 1, 1); ctx.fillRect(X + Math.round(w / 2) + 3 + (f ? 2 : -2), base - 10, 1, 1);
+  if (extra.carry != null) drawItem(ctx, extra.carry, Math.round(x) - 7, base - h - 28);
+}
+
+/** Zix: a lanky insectoid with antennae, compound eyes, four arms and wings. */
+export function drawZix(ctx, x, y, L, frame = 0, dir = 1, extra = {}, t = 0) {
+  const X = Math.round(x) - 7, Y = Math.round(y) - 34;
+  const r = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X + a, Y + b, w, h); };
+  const f = dir > 0, sh = L.shell || '#7d4fc9', sd = shadeHex(sh, 0.7), acc = L.accent || '#4fe0d0';
+  const flap = Math.floor(t / 90) % 2;
+  // wings
+  ctx.fillStyle = 'rgba(180,230,255,0.45)';
+  ctx.fillRect(X + (f ? -3 : 9), Y + 9 - flap, 8, 12 + flap);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(X + (f ? -2 : 10), Y + 10 - flap, 1, 9);
+  // legs
+  const lx = frame === 1 ? 3 : frame === 2 ? 5 : 4, rx = frame === 1 ? 9 : frame === 2 ? 7 : 8;
+  for (const lg of [lx, rx]) { r(lg - 1, 25, 3, 5, O); r(lg, 25, 1, 4, sd); r(lg + (f ? 0 : -1), 29, 3, 5, O); r(lg + (f ? 1 : 0), 30, 1, 3, sd); r(lg - 1 + (f ? 1 : 0), 33, 3, 1, O); }
+  // abdomen & thorax segments
+  r(3, 18, 9, 8, O); r(4, 19, 7, 6, sh); r(4, 21, 7, 1, sd); r(4, 23, 7, 1, sd);
+  r(4, 11, 7, 8, O); r(5, 12, 5, 6, sh); r(5, 14, 5, 1, acc);
+  // four arms
+  for (const [ay, sw] of [[13, 0], [17, 1]]) {
+    const ax = f ? 10 : 1;
+    r(ax, ay, 3, 2, O); r(ax + (f ? 2 : -1), ay + 1 + sw, 2, 4, O); r(ax + (f ? 1 : 0), ay, 1, 1, sd);
+  }
+  // head
+  r(3, 3, 9, 8, O); r(4, 4, 7, 6, sh); r(5, 9, 5, 2, O); r(6, 9, 3, 1, sd);
+  const ex = f ? 8 : 4;
+  r(ex, 5, 2, 2, '#ff4a5a'); r(ex - (f ? 3 : -3), 5, 1, 1, '#ff4a5a'); r(ex + (f ? 1 : -1), 8, 1, 1, '#ff4a5a');
+  r(ex + (f ? 0 : 1), 5, 1, 1, '#ffd0d0');
+  // antennae
+  r(5, 0, 1, 3, O); r(9, -1, 1, 4, O); r(4, -1, 2, 1, acc); r(9, -2, 2, 1, acc);
+  if (extra.carry != null) drawItem(ctx, extra.carry, Math.round(x) - 7, Y - 18);
+}
+
+/** Boxy shop droid used for staff. */
+export function drawBot(ctx, x, y, L, dir = 1, t = 0, extra = {}) {
+  const X = Math.round(x) - 7, Y = Math.round(y) - 33;
+  const r = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X + a, Y + b, w, h); };
+  const body = L.body || '#c9ced8', bd = shadeHex(body, 0.72), f = dir > 0;
+  r(3, 24, 3, 9, O); r(8, 24, 3, 9, O); r(4, 24, 1, 8, '#6b6f7a'); r(9, 24, 1, 8, '#6b6f7a'); r(2, 31, 10, 2, O);
+  r(1, 12, 12, 13, O); r(2, 13, 10, 11, body); r(2, 22, 10, 2, bd);
+  r(4, 15, 6, 4, '#14202e'); r(5 + (Math.floor(t / 300) % 4), 16, 1, 1, L.light || '#4fe0d0'); r(5, 17, 4, 1, '#ffb347');
+  r(f ? 11 : 0, 14, 3, 8, O); r(f ? 12 : 1, 15, 1, 6, bd);
+  r(2, 2, 10, 10, O); r(3, 3, 8, 8, body); r(3, 9, 8, 2, bd);
+  r(f ? 5 : 3, 5, 6, 3, '#14202e');
+  const scan = Math.floor(t / 120) % 6;
+  r((f ? 5 : 3) + (scan < 3 ? scan : 5 - scan) * 2, 6, 2, 1, L.eye || '#ff4a5a');
+  r(6, 0, 2, 2, O); r(6, -2, 2, 2, L.light || '#4fe0d0');
+  if (extra.monocle) { r(f ? 10 : 2, 4, 2, 4, '#ffb347'); }
+  if (extra.badge) { r(f ? 9 : 3, 14, 2, 2, '#ffb347'); }
 }
 
 export { drawItem, ITEMS };

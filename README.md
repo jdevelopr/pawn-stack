@@ -1,9 +1,10 @@
-# Pawn Stack
+# Red Planet Pawn
 
-A 2D pixel-art pawn shop game for desktop browsers. Haggle with sellers in the
-morning, flip items to buyers in the afternoon, and spend your profits on staff,
+A 2D pixel-art pawn shop game for desktop browsers, set in a Mars colony in the
+year 2149. Haggle with humans, astronauts, and aliens in the morning, flip their
+goods to buyers in the afternoon, and spend your credits (CR) on staff,
 advertising, and shop upgrades in the evening. Play solo or with up to 4 players
-in a shared market.
+in a shared market. Days are called sols.
 
 Plain HTML, CSS, and JavaScript. No build step, no npm install.
 
@@ -24,6 +25,33 @@ Each day has three parts:
 You can dump any item to the wholesaler at any time for a fraction of its real
 value, which is how you cut losses on a bad buy.
 
+### Items
+
+250 unique items, 25 in each of 10 categories: Earth Relics (antiques from
+roughly 1950-2060 Earth, like a 2026 smartphone or a paper newspaper), Tech,
+Ship Parts, Xeno Artifacts, Minerals, Tools, Music, Art, Gear (suits, helmets,
+jetpacks), and Toys. Each runs from Junk to Legendary.
+
+### Customers
+
+Every customer has a profile that changes how they haggle. The deal panel shows
+who you are dealing with.
+
+| Profile | Type | As a seller | As a buyer |
+|---|---|---|---|
+| Colonist | Human | Baseline | Baseline |
+| Dome Miner | Human | Cheap, but short patience | Short patience; wants Tools, Minerals |
+| Earth Tourist | Human | Rare; asks high | Overpays, rarely spots fakes |
+| Relic Collector | Human | Knows values, little haggle room | Pays extra for Earth Relics, spots fakes |
+| Smuggler | Human | Very cheap, 40% fakes | Buys anything, never checks, pays little |
+| Freighter Spacer | Astronaut | Ship parts, gear, tech | Big spender |
+| Belt Prospector | Astronaut | Better-quality goods, hard bargainer | Pays extra for Tools |
+| Grey Broker | Alien | Shrewd, offended by lowballs, drops ask fast | Spots fakes |
+| Glorp | Alien | No idea what anything is worth (wild prices) | Wild prices, very patient |
+| Zix Swarmling | Alien | Brings shiny, better goods | Pays extra for Minerals, hates junk |
+
+Tuning for each profile lives in `js/profiles.js`.
+
 ### Upgrades
 
 | Upgrade | Effect |
@@ -37,7 +65,7 @@ value, which is how you cut losses on a bad buy.
 | Restorer (staff) | Raises the condition of items overnight |
 | Security | Reduces overnight theft |
 
-Staff draw a daily wage. Rent rises every day.
+Staff draw a daily wage. Dome rent rises every sol.
 
 ### Multiplayer (shared market)
 
@@ -64,7 +92,8 @@ css/style.css     pixel UI styling
 js/main.js        screens, solo/host/join wiring, render loop, input, panels
 js/sim.js         authoritative game rules (runs in solo, or on the host)
 js/items.js       the 250 items, their sprites and palettes
-js/art.js         scene, characters, and pixel font drawing
+js/profiles.js    customer types: haggling behavior and speech lines
+js/art.js         Mars scene, humans/astronauts/aliens/droids, pixel font
 js/net.js         PeerJS networking (host-authoritative star)
 js/sound.js       WebAudio sound effects
 amplify.yml       AWS Amplify config (no build)
@@ -115,5 +144,5 @@ Join links look like `https://your-app.amplifyapp.com/?room=ABCD`.
 
 ## Solo saves
 
-Solo progress is saved in your browser at the end of each day. **Continue** on the
+Solo progress is saved in your browser at the end of each sol. **Continue** on the
 title screen picks up from the last evening.

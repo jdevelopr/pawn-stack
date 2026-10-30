@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pawn Stack</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='2' y='2' width='5' height='5' fill='%23f2c14e'/%3E%3Crect x='9' y='2' width='5' height='5' fill='%23f2c14e'/%3E%3Crect x='5.5' y='9' width='5' height='5' fill='%23f2c14e'/%3E%3C/svg%3E">
+<title>Red Planet Pawn</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='2' y='2' width='5' height='5' fill='%23ff6f61'/%3E%3Crect x='9' y='2' width='5' height='5' fill='%23ffb347'/%3E%3Crect x='5.5' y='9' width='5' height='5' fill='%234fe0d0'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -16,15 +16,16 @@
 <!-- HOME -->
 <section id="home" class="screen">
   <div class="home-card panel">
-    <h1 class="logo"><span class="balls"><i></i><i></i><i></i></span>PAWN STACK</h1>
-    <label class="lbl" for="name-input">Shop owner</label>
+    <h1 class="logo"><span class="balls"><i></i><i></i><i></i></span><span>RED PLANET<br>PAWN</span></h1>
+    <div class="tagline">MARS COLONY &middot; 2149</div>
+    <label class="lbl" for="name-input">Shopkeeper</label>
     <input id="name-input" class="field" maxlength="14" autocomplete="nickname" spellcheck="false" placeholder="Your name">
 
     <div class="lbl">Game length</div>
     <div class="seg" id="len-seg" role="radiogroup">
-      <button data-len="10" role="radio">10 days</button>
-      <button data-len="20" role="radio" class="on">20 days</button>
-      <button data-len="30" role="radio">30 days</button>
+      <button data-len="10" role="radio">10 sols</button>
+      <button data-len="20" role="radio" class="on">20 sols</button>
+      <button data-len="30" role="radio">30 sols</button>
       <button data-len="0" role="radio" id="endless-btn">Endless</button>
     </div>
 
@@ -111,11 +112,12 @@
   <div class="panel help-card">
     <h2>How to play</h2>
     <ul class="help-list">
-      <li><b>Mornings:</b> sellers bring items to your counter. Offer low and haggle, pay their ask, or pass. Lowball too hard and they stop talking to you.</li>
-      <li><b>Afternoons:</b> buyers ask for a category. Pitch an item and a price. Too high and they walk; close and they counter.</li>
+      <li><b>Mornings:</b> sellers cycle through the airlock with goods. Offer low and haggle, pay their ask, or pass. Lowball too hard and they stop talking to you.</li>
+      <li><b>Afternoons:</b> buyers ask for a category. Pitch an item and a price in credits (CR). Too high and they walk; close and they counter.</li>
       <li>Your appraisal range is only a guess. Some items are fakes.</li>
-      <li><b>Evenings:</b> pay rent and wages, then buy upgrades at the office board.</li>
+      <li><b>Evenings:</b> pay dome rent and staff wages, then buy upgrades at the holo-board in the office.</li>
       <li>Dump anything to the wholesaler for a fraction of its real value.</li>
+      <li><b>Customers</b> are colonists, miners, Earth tourists, relic collectors, smugglers, spacers, belt prospectors, Grey brokers, Glorps and Zix. Each type haggles differently; the deal panel tells you who you are dealing with.</li>
       <li><b>Multiplayer:</b> everyone shares the same sellers and buyers. First to close the deal wins it. Haggling an ask down lowers it for rivals too.</li>
       <li>A/D or arrows to walk, E to use the counter, shelves, or office. I opens inventory. Esc closes panels.</li>
     </ul>

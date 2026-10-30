@@ -1,5 +1,6 @@
 /**
- * items.js — the 250 unique items, their pixel sprites, and palettes.
+ * items.js - the 250 unique items (Mars, 2149), their pixel sprites, and palettes.
+ * Earth Relics are antiques from roughly 1950-2060 Earth.
  *
  * Each item line: name | sprite | base value | tier | colorA | colorB
  * Tiers: 0 Junk, 1 Common, 2 Uncommon, 3 Rare, 4 Legendary.
@@ -27,8 +28,8 @@ export const COLORS = {
 };
 
 export const CATS = [
-  'Jewelry', 'Electronics', 'Music', 'Collectibles', 'Art',
-  'Antiques', 'Tools', 'Sports', 'Toys', 'Fashion',
+  'Earth Relics', 'Tech', 'Ship Parts', 'Xeno Artifacts', 'Minerals',
+  'Tools', 'Music', 'Art', 'Gear', 'Toys',
 ];
 
 export const SPRITES = {
@@ -766,270 +767,501 @@ aaaaaoccccoa
 aaaaaoc..coa
 aaaaaoccccoa
 oooooooooooo`,
+  chip: `
+...o.o.o....
+..ooooooo...
+.oaaaaaaao..
+ooakkkkkaoo.
+.oakccckao..
+ooakcwckaoo.
+.oakccckao..
+ooakkkkkaoo.
+.oaaaaaaao..
+..ooooooo...
+...o.o.o....`,
+  tablet: `
+.oooooooooo.
+.oaaaaaaaao.
+.oaccccccao.
+.oacwccccao.
+.oacccccCao.
+.oaccccCCao.
+.oacccCCCao.
+.oaaaaaaaao.
+.oaaaokaaao.
+.oooooooooo.`,
+  drone: `
+kkkk....kkkk
+...o....o...
+...oooooo...
+.ooaaaaaaoo.
+oaaawaaaaaao
+oaacccccaaao
+.ooackcaooo.
+...ooooo....
+....o..o....`,
+  canister: `
+....oooo....
+...oggggo...
+..oooooooo..
+..oaaaaaao..
+..oawaaaao..
+..occcccco..
+..occcccco..
+..oawaaaao..
+..oaaaaaao..
+..oAAAAAAo..
+..oooooooo..`,
+  orb: `
+....oooo....
+..ooccccoo..
+.occwwccCCo.
+.ocwwccccCo.
+occcccccCCCo
+occcccccCCCo
+occcccCCCCCo
+.oCcCCCCCCo.
+..ooCCCCoo..
+...oaaaao...
+..oaaaaaao..
+..oooooooo..`,
+  plate: `
+oooooooooooo
+oaaaaaaaaaao
+oagaaaaaagao
+oaacccccccao
+oaacaaaaacao
+oaacaaaaacao
+oaacccccccao
+oagaaaaaagao
+oaaaaaaaaaao
+oooooooooooo`,
+  thruster: `
+...oooooo...
+...oggggo...
+..oaaaaaao..
+..oawaaaao..
+..oaaaaaao..
+.oaaaaaaaao.
+.okkkkkkkko.
+okkkkkkkkkko
+oooooooooooo
+..cc.cc.cc..
+...c..c..c..`,
+  idol: `
+...oooooo...
+..oaaaaaao..
+..oakaakao..
+..oacaacao..
+..oaaaaaao..
+...oaaaao...
+.ooaaaaaaoo.
+oaaoaccaoaao
+...oaccao...
+...oaaaao...
+..occcccco..
+..oooooooo..`,
+  skull: `
+...oooooo...
+..oaaaaaao..
+.oaaaaaaaao.
+oaaaaaaaaaao
+oakkkaakkkao
+oakckaakckao
+.oakkaakkao.
+..oaaaaaao..
+...oaooao...
+....oooo....`,
+  egg: `
+....oooo....
+...oaaaao...
+..oawaaaao..
+..oawaacao..
+.oaaaacccao.
+.oaaaaacaao.
+.oacaaaaaao.
+.occcaaaaao.
+..ocaaaaAo..
+...oAAAAo...
+....oooo....`,
+  crystal: `
+.....oo.....
+....ocwo....
+...occwco...
+...occwco...
+..occcwccco.
+..occcwccco.
+..oCccwccCo.
+..oCCcccCCo.
+...oCCcCCo..
+....oCCCo...
+.....ooo....`,
+  rock: `
+............
+....ooooo...
+..ooaaaaaoo.
+.oaaawaaaaao
+.oaaaaaacaao
+oaacaaaaaaao
+oaaaaaaacaao
+oaAaaacaaaAo
+.oAAaaaaAAo.
+..ooAAAAoo..
+....oooo....`,
+  bar: `
+............
+............
+...oooooooo.
+..oawwaaaao.
+.oaaaaaaaoao
+oooooooooAAo
+oAAAAAAAAoAo
+oAAAAAAAAoo.
+oooooooooo..`,
+  raygun: `
+.............
+....ooooo....
+..ooaaaaaoooo
+.oaaawaaaacco
+.oaaaaaaaoooo
+..ooooaaao...
+....oaao.....
+....oaao.....
+...okkko.....
+...oooo......`,
+  spacehelmet: `
+...oooooo...
+..oaaaaaao..
+.oaaaaaaaao.
+oaaoooooooao
+oaockcccwoao
+oaocccccwoao
+oaoccccccoao
+oaaoooooooao
+.oaaaaaaaao.
+.ogggggggggo
+.ooooooooooo`,
+  suit: `
+...oooooo...
+..oaaaaaao..
+..oaoccoao..
+.ooaaaaaaoo.
+oaaaccccaaao
+oaoaaakaaoao
+oaoaaaaaaoao
+ogo.aaaa.ogo
+...oaaoaao..
+...oaaoaao..
+...oggoggo..
+...ooooooo..`,
+  jetpack: `
+..oo....oo..
+.oaao..oaao.
+.oaaoooooao.
+.oawoccoawo.
+.oaaoccoaao.
+.oaaoooooao.
+.oaao..oaao.
+.oggo..oggo.
+..oo....oo..
+..cc....cc..
+...c.....c..`,
+  rocket: `
+.....oo.....
+....oaao....
+...oaaaao...
+...oacwao...
+...oaccao...
+...oaaaao...
+...oaaaao...
+..ooaaaaoo..
+.ocoaaaaoco.
+.occoooocco.
+..o.cccc.o..
+.....cc.....`,
+  ufo: `
+....oooo....
+...owwcco...
+..owcccCco..
+.oooooooooo.
+oaaaaaaaaaao
+oakaakaakaao
+.oaaaaaaaao.
+..oooooooo..
+...c.c..c...
+..c..c...c..`,
+  key: `
+............
+.oooo.......
+oaaaao......
+oaoaaoooooo.
+oaoaaaaaaao.
+oaaaacocoao.
+.oooo.o.oo..`,
 };
 
 // name | sprite | value | tier | colorA | colorB      (25 per category, in CATS order)
 const RAW = {
-Jewelry: `
-Plastic Mood Ring|ring|4|0|plastic|purple
-Bead Bracelet|necklace|3|0|orange|lime
-Cracked Digital Watch|watch|6|0|black|gray
-Glass "Diamond"|gem|2|0|sky|white
-Costume Tiara|crown|8|0|silver|pink
-Clip-On Earrings|earring|3|0|silver|plastic
-Sterling Silver Band|ring|45|1|silver|white
-Freshwater Pearl Strand|necklace|90|1|pearl|pearl
-Quartz Wristwatch|watch|60|1|silver|navy
-Amethyst Pendant|necklace|70|1|silver|amethyst
-Turquoise Ring|ring|55|1|silver|turq
-Gold-Plated Chain|necklace|40|1|gold|gold
-Silver Hoop Earrings|earring|35|1|silver|silver
-Garnet Stud Earrings|earring|65|1|gold|crimson
-14K Gold Signet Ring|ring|320|2|gold|black
-Vintage Cameo Brooch|gem|260|2|gold|rose
-Automatic Dive Watch|watch|450|2|silver|blue
-Sapphire Tennis Bracelet|necklace|480|2|silver|sapphire
-Emerald Cocktail Ring|ring|420|2|gold|emerald
-Art Deco Pocket Watch|watch|380|2|gold|cream
-2-Carat Diamond Ring|ring|2200|3|white|diamond
-Swiss Chronograph|watch|1800|3|gold|black
-Ruby Choker|necklace|1500|3|gold|ruby
-Royal Jeweled Crown|crown|12000|4|gold|ruby
-Pink Star Diamond|gem|9000|4|pink|pink`,
-Electronics: `
-Flip Phone|phone|5|0|gray|lime
-Tangled Earbuds|headphones|2|0|white|white
-Solar Calculator|phone|3|0|black|olive
-Rabbit-Ear TV|tv|12|0|wood|gray
-Disposable Camera|camera|3|0|yellow|black
-Off-Brand Game Console|console|10|0|plastic|yellow
-Two-Gen-Old Smartphone|phone|90|1|black|sky
-Portable CD Player|radio|25|1|silver|teal
-Budget Netbook|laptop|70|1|black|blue
-32-Inch Flatscreen|tv|110|1|black|navy
-Point-and-Shoot Camera|camera|45|1|silver|black
-Studio Headphones|headphones|80|1|black|red
-Handheld Game System|console|60|1|gray|green
-Boombox|radio|55|1|black|orange
-Gaming Laptop|laptop|650|2|black|lime
-DSLR Camera Kit|camera|480|2|black|navy
-Noise-Canceling Headphones|headphones|190|2|silver|black
-OLED Television|tv|700|2|black|purple
-Current-Gen Console|console|380|2|white|blue
-Flagship Smartphone|phone|520|2|silver|purple
-Vintage Rangefinder Camera|camera|1900|3|silver|black
-Sealed Retro Console|console|2400|3|gray|red
-Reel-to-Reel Tape Deck|radio|1400|3|silver|bronze
-Prototype Handheld|console|8000|4|teal|gold
-Hand-Built 1976 Microcomputer|laptop|14000|4|wood|green`,
-Music: `
-Kazoo|trumpet|1|0|plastic|plastic
-Scratched Pop LP|record|2|0|black|pink
-Toy Keyboard|keyboard|8|0|plastic|yellow
-Single Bongo|drum|9|0|tan|wood
-Karaoke Microphone|mic|7|0|plastic|pink
-Child's Ukulele|guitar|10|0|yellow|red
-Beginner Acoustic Guitar|guitar|70|1|tan|darkwood
-Student Violin|violin|90|1|wood|black
-Used Trumpet|trumpet|120|1|brass|brass
-Jazz Vinyl Box Set|record|60|1|black|blue
-Snare Drum|drum|85|1|red|silver
-Digital Piano|keyboard|110|1|black|gray
-Dynamic Stage Mic|mic|50|1|black|black
-Electric Bass|guitar|150|1|navy|white
-Vintage Electric Guitar|guitar|900|2|red|cream
-Analog Synthesizer|keyboard|1000|2|wood|orange
-Ribbon Studio Mic|mic|650|2|silver|gold
-Brass Saxophone|trumpet|700|2|gold|gold
-Full Drum Kit|drum|600|2|blue|silver
-Rare Punk Pressing LP|record|350|2|black|lime
-1959 Sunburst Guitar|guitar|2500|3|orange|darkwood
-Antique Cello|violin|2200|3|darkwood|black
-Test-Pressing Debut Album|record|1800|3|black|white
-Italian Master Violin (1700s)|violin|15000|4|copper|black
-Guitar Smashed On Stage by a Legend|guitar|9500|4|black|white`,
-Collectibles: `
-Common Trading Card|card|1|0|blue|gray
-Bent Bottle Caps|coin|1|0|gray|red
-Coverless Comic|comic|2|0|cream|gray
-Fast-Food Toy Figure|figurine|2|0|plastic|yellow
-Participation Trophy|trophy|3|0|brass|black
-Jar of Foreign Pennies|coin|2|0|copper|bronze
-Holo Rookie Card|card|40|1|sky|purple
-Silver Dollar|coin|35|1|silver|gray
-Bronze Age Comic|comic|30|1|red|yellow
-Limited Vinyl Figure|figurine|45|1|teal|black
-Bowling League Trophy|trophy|25|1|gold|darkwood
-Ammonite Fossil|fossil|60|1|tan|darkwood
-Stamp Album|stamp|50|1|red|navy
-Commemorative Coin Set|coin|70|1|bronze|navy
-Graded Rookie Card (Gem 9)|card|420|2|gold|red
-First Appearance Comic|comic|600|2|blue|red
-Gold Sovereign Coin|coin|550|2|gold|gold
-Trilobite Fossil|fossil|300|2|gray|black
-Signed Movie Prop Figurine|figurine|350|2|silver|black
-Moon Rock Shard|fossil|800|2|gray|sky
-Golden Age Comic|comic|2400|3|yellow|red
-Gold Double Eagle Coin|coin|2600|3|gold|gold
-Raptor Claw Fossil|fossil|1900|3|cream|black
-Inverted Biplane Stamp|stamp|14000|4|crimson|blue
-1909 Shortstop Tobacco Card|card|13000|4|cream|orange`,
-Art: `
-Hotel Room Painting|painting|6|0|tan|sky
-Plaster Garden Gnome|statue|5|0|red|green
-Chipped Flower Vase|vase|2|0|sky|white
-Velvet Tiger Painting|painting|8|0|black|orange
-Paint-by-Numbers Sunset|painting|4|0|wood|orange
-Souvenir Bust|statue|4|0|white|gray
-Signed Local Landscape|painting|90|1|wood|green
-Bronze Paperweight Sculpture|statue|60|1|bronze|black
-Hand-Thrown Pottery Vase|vase|45|1|rust|cream
-Framed Lithograph|painting|120|1|black|white
-Ink Wash Scroll|scroll|80|1|darkwood|black
-Marble Bookends|statue|70|1|white|gray
-Glass Art Bowl|vase|55|1|teal|sky
-Watercolor Seascape|painting|100|1|cream|blue
-Mid-Century Abstract Canvas|painting|850|2|black|orange
-Bronze Dancer Statue|statue|700|2|bronze|darkwood
-Celadon Glaze Vase|vase|450|2|jade|white
-Edo Period Woodblock Print|scroll|600|2|wood|navy
-Signed Pop Art Print|painting|900|2|yellow|pink
-Carved Jade Figure|statue|520|2|jade|darkwood
-Impressionist Study Sketch|scroll|2500|3|gold|black
-Art Nouveau Glass Vase|vase|1800|3|amethyst|gold
-Lost Regional Master Oil|painting|2800|3|gold|olive
-Missing Golden Age Portrait|painting|15000|4|gold|darkwood
-Ancient Marble Bust|statue|12000|4|white|black`,
-Antiques: `
-Broken Cuckoo Clock|clock|6|0|darkwood|cream
-Wickless Oil Lamp|lamp|5|0|gray|cream
-Cracked Teapot|teapot|2|0|white|sky
-Faded Paperback|book|1|0|cream|gray
-Inflatable Globe|globe|3|0|sky|green
-Torn Road Atlas|map|1|0|cream|blue
-Brass Mantel Clock|clock|90|1|brass|cream
-Hurricane Lamp|lamp|40|1|brass|cream
-Bone China Tea Set|teapot|70|1|white|blue
-Desk Globe|globe|60|1|cream|tan
-Manual Typewriter|typewriter|85|1|black|cream
-Leather-Bound Classics|book|50|1|leather|gold
-Railroad Lantern|lamp|75|1|red|yellow
-Antique Sea Chart|map|95|1|darkwood|tan
-Grandfather Clock Movement|clock|800|2|gold|cream
-Stained Glass Lamp|lamp|650|2|bronze|emerald
-Silver Tea Service|teapot|900|2|silver|silver
-Library Floor Globe|globe|500|2|tan|darkwood
-Signed First Edition|book|700|2|navy|gold
-Brass Ship Sextant|globe|550|2|brass|brass
-Gilded Carriage Clock|clock|2400|3|gold|white
-Colonial Survey Map|map|1700|3|darkwood|olive
-Wartime Cipher Typewriter|typewriter|2800|3|olive|cream
-Illuminated Medieval Manuscript|book|15000|4|crimson|gold
-Authenticated Pirate Treasure Map|map|11000|4|darkwood|tan`,
-Tools: `
-Bent Hammer|hammer|2|0|rust|wood
-Rusty Wrench|wrench|2|0|rust|rust
-Dull Hand Saw|saw|3|0|wood|rust
-Empty Toolbox|toolbox|4|0|red|gray
-Drill, No Battery|drill|6|0|yellow|black
-Seized Socket Set|toolbox|5|0|gray|black
-Cordless Drill Kit|drill|70|1|yellow|black
-Framing Hammer|hammer|25|1|darkwood|gray
-Torque Wrench|wrench|80|1|silver|black
-Rolling Tool Chest|toolbox|150|1|red|black
-Circular Saw|saw|60|1|orange|gray
-Gas Chainsaw|chainsaw|140|1|orange|gray
-Pipe Wrench Set|wrench|45|1|red|red
-Hammer Drill|drill|95|1|teal|black
-Pro Mechanic Tool Chest|toolbox|900|2|black|silver
-Cabinet Table Saw|saw|500|2|gray|navy
-Commercial Chainsaw|chainsaw|450|2|lime|black
-Impact Driver Combo|drill|300|2|red|black
-Antique Blacksmith Hammer|hammer|260|2|darkwood|black
-Machinist Wrench Set|wrench|350|2|silver|navy
-Handmade Joinery Saw Set|saw|1600|3|darkwood|silver
-Master Machinist Chest|toolbox|2600|3|darkwood|brass
-1917 Electric Drill|drill|1900|3|black|brass
-Shipwright's 1700s Tool Chest|toolbox|9000|4|darkwood|gold
-Gold Presentation Hammer|hammer|7500|4|darkwood|gold`,
-Sports: `
-Deflated Football|ball|1|0|leather|white
-Cracked Bat|bat|3|0|tan|black
-Kid's Bike Helmet|helmet|4|0|lime|gray
-Rusty BMX|bike|15|0|rust|black
-Warped Skateboard|skateboard|4|0|tan|gray
-Bag of Lost Golf Balls|ball|2|0|white|gray
-Aluminum Bat|bat|40|1|silver|black
-Signed Minor-League Ball|ball|30|1|white|red
-Football Helmet|helmet|60|1|navy|white
-Commuter Bike|bike|110|1|teal|black
-Pro Skate Deck|skateboard|60|1|black|red
-Golf Driver|golfclub|90|1|silver|black
-Catcher's Mitt|glove|50|1|leather|tan
-Boxing Gloves|glove|35|1|red|white
-Carbon Road Bike|bike|950|2|black|red
-Game-Used Bat|bat|600|2|tan|black
-Vintage Leather Helmet|helmet|450|2|leather|darkwood
-Titanium Golf Set|golfclub|800|2|gray|black
-Signed Pro-Model Skateboard|skateboard|350|2|purple|yellow
-Championship Basketball|ball|500|2|orange|black
-Record Game Home Run Ball|ball|2800|3|white|red
-Hall of Fame Glove|glove|2200|3|tan|darkwood
-Tour Champion Putter|golfclub|1600|3|gold|black
-1920s Slugger's Bat|bat|14000|4|cream|black
-Olympic Gold Medal Bike|bike|10000|4|gold|black`,
-Toys: `
-One-Eyed Teddy|teddy|1|0|tan|pink
-Loose Game Cartridge|cartridge|4|0|gray|red
-Broken RC Car|car|5|0|red|black
-Incomplete Board Game|board|1|0|white|black
-Bald Fashion Doll|doll|1|0|pink|cream
-Wind-Up Chattering Teeth|robot|3|0|white|red
-Collector Teddy Bear|teddy|40|1|wood|red
-Boxed Racing Game|cartridge|35|1|gray|blue
-Die-Cast Car Set|car|30|1|blue|black
-Classic Strategy Game|board|25|1|cream|black
-Porcelain Doll|doll|60|1|white|yellow
-Tin Wind-Up Robot|robot|90|1|silver|red
-Model Airplane Kit|plane|45|1|olive|white
-RC Helicopter|plane|70|1|red|black
-Sealed Platformer Cartridge|cartridge|800|2|gray|red
-Vintage Space Robot|robot|650|2|blue|yellow
-Mint Die-Cast Prototype|car|500|2|orange|black
-First Edition Fantasy Board Game|board|400|2|cream|crimson
-Antique Bisque Doll|doll|550|2|rose|darkwood
-Mohair Button-Ear Bear|teddy|700|2|cream|gold
-Graded Sealed RPG Cartridge|cartridge|2500|3|gold|blue
-1950s Tin Rocket Robot|robot|1800|3|red|silver
-Pressed-Steel Pedal Car|car|1500|3|red|white
-Gold Contest-Prize Cartridge|cartridge|13000|4|gold|black
+'Earth Relics': `
+Cracked 2030s Smartwatch|watch|6|0|black|gray
+Bottle Cap Collection|coin|2|0|red|gray
+Unlabeled USB Stick|chip|1|0|gray|blue
+Faded Paper Receipt|card|1|0|white|gray
+Dead Wireless Earbuds|headphones|3|0|white|white
+Souvenir Keychain Charms|earring|2|0|silver|red
+2026 Smartphone|phone|80|1|black|sky
+Paper Paperback Novel|book|45|1|cream|red
+Plastic Credit Card|card|35|1|gold|blue
+Earth Baseball Cap|hat|40|1|navy|white
+Copper Penny Roll|coin|30|1|copper|bronze
+Combustion-Car Key Fob|key|50|1|black|red
+Printed Photo Album|book|60|1|leather|white
+Vinyl LP (2020s Pop)|record|55|1|black|pink
+Mint 2020s Game Console|console|600|2|white|black
+Gold Wedding Ring (2031)|ring|420|2|gold|gold
+Signed Paper Comic|comic|500|2|red|yellow
+Spark Plug Set (Gas Engine)|toolbox|300|2|gray|red
+Original Earth Sneakers (2024)|sneaker|700|2|white|red
+Analog Wristwatch (2019)|watch|650|2|silver|navy
+Sealed 2026 Flagship Phone|phone|2400|3|silver|purple
+Last Paper Newspaper (2044)|scroll|1900|3|cream|black
+Graded 1990s Trading Card|card|2200|3|gold|red
+Apollo Mission Patch (1969)|stamp|12000|4|navy|gold
+First Mars Landing Flag (2041)|map|14000|4|red|white`,
+'Tech': `
+Glitchy Holo-Pad|tablet|6|0|gray|sky
+Burnt-Out Neural Jack|chip|3|0|black|red
+Off-Brand Translator Earpiece|headphones|5|0|plastic|white
+Cracked Drone Shell|drone|8|0|gray|orange
+Expired Med-Scanner|phone|4|0|white|red
+Dead Power Cell|canister|2|0|gray|lime
+Holo-Pad Mini|tablet|70|1|black|teal
+Universal Translator|headphones|90|1|silver|purple
+Pocket Drone|drone|110|1|teal|black
+Smart Visor|sunglasses|60|1|black|sky
+Med-Scanner|phone|85|1|white|green
+Fusion Power Cell|canister|50|1|yellow|black
+Holo-Projector|lamp|95|1|silver|sky
+Personal Comms Band|watch|65|1|black|lime
+Neural Link Headset|headphones|650|2|silver|pink
+Military Recon Drone|drone|800|2|olive|red
+Quantum Holo-Pad|tablet|500|2|navy|sky
+AI Companion Core|orb|700|2|white|sky
+Cloaking Field Emitter|chip|900|2|black|purple
+Gravity Stabilizer|canister|450|2|silver|blue
+Prototype Teleport Pad|tablet|2600|3|white|teal
+Sentient AI Chip (Dormant)|chip|2200|3|gold|lime
+Antimatter Battery|canister|2800|3|black|pink
+First Warp-Theory Processor|chip|14000|4|gold|sky
+Self-Aware Android Head|robot|11000|4|silver|sky`,
+'Ship Parts': `
+Bag of Hull Rivets|coin|2|0|gray|gray
+Scorched Heat Tile|plate|4|0|black|orange
+Leaky O2 Canister|canister|5|0|white|red
+Frayed Tether Cable|belt|2|0|yellow|gray
+Cracked Viewport Glass|plate|6|0|gray|sky
+Dented Fuel Nozzle|thruster|8|0|gray|black
+Maneuvering Thruster|thruster|120|1|silver|orange
+Nav Computer|laptop|90|1|gray|green
+Hull Plate|plate|60|1|gray|silver
+Docking Clamp|wrench|70|1|yellow|black
+O2 Scrubber|canister|85|1|white|teal
+Radiation Shield Panel|plate|110|1|yellow|black
+Pilot Control Yoke|console|65|1|black|red
+Landing Strut|bat|50|1|silver|gray
+Ion Drive Coil|thruster|750|2|blue|sky
+Freighter Black Box|toolbox|600|2|orange|black
+Gravity Plating|plate|500|2|purple|silver
+Warp Field Capacitor|canister|900|2|navy|pink
+Rocket Nozzle (2060s)|thruster|450|2|bronze|black
+Quantum Nav Core|orb|800|2|silver|lime
+Shuttle Cockpit Panel|laptop|2400|3|white|orange
+Racing Ship Afterburner|thruster|2600|3|red|yellow
+Colony Ship Bell|trophy|1800|3|brass|brass
+Ares-I Ignition Key|key|13000|4|gold|red
+Hyperdrive Prototype Core|orb|15000|4|white|pink`,
+'Xeno Artifacts': `
+Glowing Pebble (Not Glowing)|rock|1|0|gray|lime
+Alien Tourist Trinket|orb|3|0|plastic|lime
+Shed Glorp Membrane|egg|2|0|lime|green
+Grey Fortune Shell|egg|1|0|tan|cream
+Rubber Alien Mask|skull|4|0|lime|black
+Zix Wing Clipping|crystal|3|0|sky|white
+Xeno Resonance Chime|crystal|80|1|teal|white
+Grey Etiquette Tablet|tablet|60|1|gray|lime
+Spore Lantern|lamp|70|1|lime|purple
+Zix Hive Comb|plate|55|1|yellow|orange
+Tentacle Handshake Glove|glove|45|1|lime|green
+Alien Coin (Unknown Mint)|coin|90|1|purple|teal
+Star Map Shard|map|100|1|navy|sky
+Glorp Mood Gel|canister|40|1|pink|lime
+Ancient Xeno Idol|idol|800|2|teal|gold
+Singing Crystal Skull|skull|700|2|sky|pink
+Grey Diplomatic Seal|coin|500|2|silver|purple
+Fossilized Alien Egg|egg|650|2|tan|purple
+Psionic Focus Orb|orb|900|2|purple|pink
+Zix Queen's Feather|crystal|450|2|gold|sky
+Precursor Data Obelisk|idol|2600|3|black|lime
+Living Star Chart|orb|2400|3|navy|gold
+First Contact Gift Box (2097)|toolbox|2200|3|silver|teal
+Precursor Gate Keystone|idol|15000|4|gold|teal
+Sleeping Void Egg|egg|12000|4|black|pink`,
+'Minerals': `
+Jar of Mars Dust|canister|1|0|rust|rust
+Common Basalt Chunk|rock|2|0|gray|black
+Fake Martian Ruby|gem|3|0|red|pink
+Melted Ice Core Sample|canister|1|0|sky|white
+Pumice Paperweight|rock|2|0|tan|gray
+Polished Gravel|gem|2|0|gray|white
+Martian Opal|gem|90|1|orange|sky
+Hematite Nodule|rock|40|1|black|silver
+Olivine Cluster|crystal|60|1|lime|green
+Phobos Fragment|rock|80|1|gray|tan
+Silica Geode|rock|70|1|tan|purple
+Polar Ice Crystal|crystal|50|1|sky|white
+Copper Ore Ingot|bar|65|1|copper|bronze
+Rough Jasper Pendant|necklace|45|1|silver|rust
+Iridium Ingot|bar|700|2|silver|white
+Deimos Meteorite|rock|500|2|black|orange
+Valles Marineris Diamond|gem|900|2|diamond|white
+Platinum Asteroid Nugget|rock|650|2|silver|silver
+Olympus Mons Obsidian|crystal|400|2|black|purple
+Belt-Mined Sapphire Ring|ring|600|2|silver|sapphire
+Helium-3 Crystal Lattice|crystal|2400|3|sky|yellow
+Neutron Star Sliver (Contained)|canister|2800|3|white|purple
+Gold Asteroid Bar|bar|2200|3|gold|gold
+The Red Heart (Giant Ruby)|gem|14000|4|ruby|crimson
+Comet Core Diamond|gem|11000|4|diamond|sky`,
+'Tools': `
+Bent Space Wrench|wrench|2|0|rust|rust
+Dull Plasma Cutter|raygun|5|0|gray|orange
+Rusty Rock Hammer|hammer|2|0|rust|wood
+Empty Tool Pod|toolbox|4|0|orange|gray
+Busted Laser Level|drill|4|0|yellow|red
+Vintage Duct Tape Roll|coin|1|0|gray|gray
+Plasma Cutter|raygun|90|1|orange|sky
+Mag-Drill|drill|80|1|yellow|black
+Rock Hammer|hammer|30|1|darkwood|silver
+Mechanic's Tool Pod|toolbox|140|1|red|black
+Sonic Spanner|wrench|60|1|silver|teal
+Core Sampler|drill|110|1|orange|white
+Laser Saw|saw|70|1|black|red
+Grav-Lifter Gloves|glove|55|1|yellow|black
+Industrial Plasma Torch|raygun|600|2|red|yellow
+Exo-Loader Servo|toolbox|800|2|yellow|black
+Diamond Mining Drill|drill|700|2|silver|diamond
+Nano-Repair Kit|canister|450|2|white|lime
+Monomolecular Saw|saw|500|2|black|sky
+Terraforming Seed Spreader|thruster|350|2|green|tan
+First Colony Shovel (2041)|hammer|2200|3|darkwood|silver
+Matter Fabricator Head|toolbox|2600|3|silver|purple
+Gravity Wrench|wrench|1800|3|navy|pink
+Terraformer Prime Control Rod|bat|13000|4|gold|lime
+Ancestral Earth Toolbox (1950s)|toolbox|9000|4|red|silver`,
+'Music': `
+Scratched Holo-Disc|record|2|0|silver|pink
+Zero-G Kazoo|trumpet|1|0|plastic|plastic
+Static Radio Receiver|radio|5|0|gray|black
+Broken Theremin|mic|6|0|black|silver
+Karaoke Drone|drone|7|0|pink|yellow
+Bootleg Space Opera Chip|chip|3|0|black|pink
+Zero-G Acoustic Guitar|guitar|80|1|tan|darkwood
+Holo-Record (Dome Jazz)|record|50|1|black|teal
+Plasma Synth|keyboard|120|1|navy|pink
+Low-Gravity Drum|drum|85|1|red|silver
+Theremin|mic|90|1|black|silver
+Stadium Holo-Mic|mic|55|1|black|lime
+Brass Spacer Bugle|trumpet|100|1|brass|brass
+Retro Boombox (2020s)|radio|65|1|black|orange
+Earth Vinyl Collection (2010s)|record|500|2|black|gold
+Electric Guitar (Earth, 2030)|guitar|900|2|red|cream
+Grey Choir Harp|violin|650|2|silver|lime
+Martian Opera Crystal|crystal|400|2|pink|white
+Antique Saxophone (2006)|trumpet|700|2|gold|gold
+Studio Synth Rack|keyboard|800|2|black|orange
+First Song on Mars (Master Tape)|record|2500|3|black|red
+Concert Holo-Guitar|guitar|2200|3|purple|sky
+Master-Pattern Violin (2088)|violin|2000|3|copper|black
+Original 1700s Earth Violin|violin|15000|4|copper|black
+Golden Record Replica|record|12000|4|gold|gold`,
+'Art': `
+Dome Gift Shop Print|painting|5|0|tan|orange
+Plastic Rover Figurine|car|3|0|white|gray
+Dust Art Jar|vase|2|0|rust|orange
+Velvet Saturn Painting|painting|6|0|black|yellow
+AI Paint-by-Numbers|painting|4|0|wood|pink
+Souvenir Astronaut Bust|statue|4|0|white|gray
+Red Canyon Landscape|painting|90|1|wood|orange
+Sandstone Rover Sculpture|statue|60|1|rust|tan
+Glass Dome Terrarium|vase|70|1|sky|green
+Framed Earth Postcard (2030s)|painting|100|1|black|blue
+Holo-Portrait|tablet|80|1|silver|pink
+Iron Dust Vase|vase|45|1|rust|black
+Zero-G Ink Scroll|scroll|75|1|navy|teal
+Earthrise Watercolor|painting|110|1|cream|blue
+Neon Nebula Canvas|painting|850|2|navy|pink
+Bronze First-Steps Statue|statue|700|2|bronze|darkwood
+Grey Light Sculpture|orb|500|2|white|lime
+Earth Pop Art Print (2020s)|painting|900|2|yellow|pink
+Jade Colonist Figure|statue|520|2|jade|darkwood
+Crystal Garden Vase|vase|450|2|purple|sky
+Lost Martian Impressionist Oil|painting|2800|3|gold|orange
+Xeno Living Sculpture|idol|2400|3|teal|pink
+Pre-Exodus Gallery Sketch|scroll|2000|3|gold|black
+Recovered Renaissance Portrait|painting|15000|4|gold|darkwood
+Ancient Greek Bust (Shipped)|statue|12000|4|white|black`,
+'Gear': `
+Scuffed EVA Helmet|spacehelmet|6|0|white|gray
+Patched Jumpsuit|suit|4|0|orange|gray
+Single Mag-Boot|sneaker|3|0|gray|black
+Fogged Sun Visor|sunglasses|2|0|black|orange
+Frayed Utility Belt|belt|2|0|olive|gray
+Novelty Antenna Headband|hat|1|0|lime|pink
+Colonist Jumpsuit|suit|60|1|orange|white
+Standard EVA Helmet|spacehelmet|110|1|white|sky
+Mag-Boots|sneaker|70|1|silver|black
+Dust Goggles|sunglasses|40|1|brass|orange
+Thermal Poncho|jacket|50|1|red|cream
+Utility Belt|belt|45|1|leather|silver
+Spacer Bomber Jacket|jacket|85|1|navy|orange
+Rebreather Mask|spacehelmet|75|1|black|lime
+Personal Jetpack|jetpack|900|2|silver|orange
+Pro EVA Suit|suit|800|2|white|blue
+Designer Dome Handbag|handbag|600|2|pink|gold
+Smart Fabric Coat|jacket|500|2|purple|sky
+Gold-Visor Helmet|spacehelmet|700|2|white|gold
+Rocket Racer Gloves|glove|350|2|red|white
+Flight Commander Jacket|jacket|2200|3|navy|gold
+Racing Jetpack|jetpack|2800|3|red|yellow
+Apollo-Era EVA Glove|glove|2000|3|white|silver
+First Mars Walker's Helmet|spacehelmet|15000|4|white|gold
+Couture Zero-G Gown|suit|10000|4|pink|gold`,
+'Toys': `
+One-Eared Robo-Pet|robot|3|0|gray|pink
+Loose VR Cartridge|cartridge|4|0|gray|red
+Busted Toy Rover|car|5|0|white|black
+Incomplete Holo-Chess|board|2|0|white|black
+Deflated Zero-G Ball|ball|1|0|orange|white
+Plastic Ray Gun|raygun|2|0|plastic|lime
+Robo-Pet Puppy|robot|90|1|silver|red
+Holo-Chess Set|board|45|1|cream|sky
+Model Rocket Kit|rocket|60|1|white|red
+Plush Glorp|teddy|35|1|lime|green
+Toy UFO|ufo|40|1|silver|lime
+RC Rover|car|70|1|orange|black
+Zero-G Ball|ball|30|1|orange|blue
+Retro 2020s Plush Bear|teddy|50|1|wood|red
+Sealed 2020s Game Cartridge|cartridge|800|2|gray|red
+Vintage Tin Robot (Earth)|robot|650|2|blue|yellow
+Collector Rocket Model|rocket|500|2|silver|orange
+Signed Limited Glorp Plush|teddy|400|2|lime|gold
+First Edition Holo-Game|cartridge|550|2|navy|sky
+Antique Earth Doll (2010s)|doll|450|2|rose|darkwood
+Prototype VR Rig|tablet|2400|3|black|pink
+Champion Laser Tag Blaster|raygun|1800|3|red|sky
+Tin Rocket (1950s Earth)|rocket|2200|3|red|silver
+Gold Prize Cartridge (2027)|cartridge|13000|4|gold|black
 Original 1959 Fashion Doll|doll|9500|4|black|yellow`,
-Fashion: `
-Knockoff Sneakers|sneaker|5|0|white|red
-Faux Leather Purse|handbag|4|0|black|gray
-Trucker Hat|hat|2|0|red|white
-Moth-Eaten Sweater|jacket|2|0|olive|tan
-Gas Station Sunglasses|sunglasses|1|0|black|black
-Cracked Vinyl Belt|belt|1|0|black|gray
-Retro Running Shoes|sneaker|60|1|blue|yellow
-Leather Satchel|handbag|80|1|leather|brass
-Wool Fedora|hat|45|1|gray|black
-Denim Jacket|jacket|50|1|denim|white
-Aviator Sunglasses|sunglasses|70|1|gold|black
-Western Belt Buckle|belt|40|1|leather|silver
-Varsity Jacket|jacket|75|1|red|cream
-Polarized Sport Shades|sunglasses|55|1|black|teal
-Limited Release Sneakers|sneaker|600|2|lime|black
-Designer Handbag|handbag|900|2|cream|gold
-Silk Top Hat|hat|350|2|black|crimson
-Shearling Bomber Jacket|jacket|500|2|leather|cream
-Rodeo Champion Buckle|belt|450|2|leather|gold
-Vintage Cat-Eye Frames|sunglasses|300|2|crimson|black
-Game-Worn Signature Sneakers|sneaker|2600|3|red|white
-Crocodile Leather Tote|handbag|2400|3|olive|gold
-Couture Runway Coat|jacket|1900|3|purple|gold
-Studio-Provenance Costume Hat|hat|9000|4|black|gold
-Moon-Era Prototype Sneakers|sneaker|12000|4|silver|orange`,
 };
 
 export const ITEMS = [];
@@ -1055,7 +1287,7 @@ export const SPRITE_SIZE = 14;
 const parsed = {};
 function grid(name) {
   if (parsed[name]) return parsed[name];
-  const rows = SPRITES[name].replace(/^\n/, '').split('\n').map(r => r.slice(0, SPRITE_SIZE));
+  const rows = SPRITES[name].replace(/^\n/, '').replace(/[^\x20-\x7e\n]/g, 'o').split('\n').map(r => r.slice(0, SPRITE_SIZE));
   return (parsed[name] = rows);
 }
 

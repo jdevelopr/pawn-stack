@@ -1,5 +1,5 @@
 /**
- * sim.js — the authoritative game simulation. Pure logic, no DOM.
+ * sim.js - the authoritative game simulation (Red Planet Pawn). Pure logic, no DOM.
  *
  * Solo: runs locally. Multiplayer: runs only on the host; joiners send actions
  * and receive per-player views from viewFor(pid). State is plain JSON so it can
@@ -9,6 +9,7 @@
  *            -> sell (buyers at counter) -> evening (summary + upgrades) -> next day
  */
 import { ITEMS, BY_TIER, CATS } from './items.js';
+import { PROFILES, pickProfile, say, cr } from './profiles.js';
 
 export const COND = [
   { n: 'Broken', m: 0.3 }, { n: 'Worn', m: 0.65 }, { n: 'Good', m: 1 }, { n: 'Mint', m: 1.45 },
@@ -143,18 +144,24 @@ export class Sim {
     }
     slots.sort(() => Math.random() - 0.5);
     return slots.map(forPid => {
-      const L = forPid ? this.s.players[forPid].up.ads : 0;
+      const prof = pickProfile('sell'), P0 = PROFILES[prof], ps = P0.sell;
+      const L = (forPid ? this.s.players[forPid].up.ads : 0) + (ps.tier || 0);
       const tier = wpick([Math.max(4, 40 - 7 * L), 35, 17 + 2.5 * L, 6 + 1.8 * L, 1.2 + 0.8 * L]);
-      const id = pick(BY_TIER[tier]);
+      let pool = BY_TIER[tier];
+      if (P0.cats && Math.random() < 0.6) {
+        const sub = pool.filter(i => P0.cats.includes(ITEMS[i].cat));
+        if (sub.length) pool = sub;
+      }
+      const id = pick(pool);
       const inst = {
         uid: 'i' + this.s.uid++, id, cond: wpick(COND_W), vm: +rand(0.85, 1.15).toFixed(3),
-        fake: tier >= 2 && Math.random() < 0.13,
+        fake: tier >= 2 && Math.random() < (ps.fake ?? 0.13),
       };
       const P = genuineValue(inst);
-      // Sellers of fakes know what they have; everyone else guesses.
-      const F = Math.max(1, Math.round(P * (inst.fake ? rand(0.2, 0.55) : rand(0.32, 1.05))));
-      const ask = Math.max(F + 1, nice(F * rand(1.35, 1.9)));
-      return { id: 's' + this.s.uid++, inst, F, ask, startAsk: ask, for: forPid, look: Math.floor(Math.random() * 1e9), per: {}, feed: [] };
+      // Sellers of fakes know what they have; everyone else guesses (some guess wildly).
+      const F = Math.max(1, Math.round(P * (inst.fake ? rand(0.2, 0.55) : rand(...ps.floor))));
+      const ask = Math.max(F + 1, nice(F * rand(...ps.ask)));
+      return { id: 's' + this.s.uid++, prof, inst, F, ask, startAsk: ask, for: forPid, look: Math.floor(Math.random() * 1e9), per: {}, feed: [] };
     });
   }
 
@@ -171,14 +178,17 @@ export class Sim {
 
   makeBuyer(forPid) {
     const S = this.s;
+    const prof = pickProfile('buy'), P0 = PROFILES[prof];
     const pool = forPid ? [S.players[forPid]] : this.live();
     const cats = pool.flatMap(p => p.inv.map(i => ITEMS[i.id].cat));
+    const fav = P0.cats ? cats.filter(c => P0.cats.includes(c)) : [];
     let cat;
     if (Math.random() < 0.12) cat = 'any';
+    else if (fav.length && Math.random() < 0.7) cat = pick(fav);
     else if (cats.length && Math.random() < 0.85) cat = pick(cats);
     else if (S.event && S.event.mod > 1 && Math.random() < 0.5) cat = S.event.cat;
     else cat = pick(CATS);
-    return { id: 'b' + S.uid++, cat, mult: +rand(0.82, 1.4).toFixed(3), for: forPid, look: Math.floor(Math.random() * 1e9), per: {}, feed: [] };
+    return { id: 'b' + S.uid++, prof, cat, mult: +rand(...P0.buy.mult).toFixed(3), for: forPid, look: Math.floor(Math.random() * 1e9), per: {}, feed: [] };
   }
 
   tick(now) {
@@ -189,11 +199,11 @@ export class Sim {
         break;
       case 'buy': {
         const c = S.seller;
-        if (c && !c.done && now >= c.until) this.customerLeave(c, now, 'Ran out of patience and left.');
+        if (c && !c.done && now >= c.until) this.customerLeave(c, now, say(c.prof, 'walk'));
         if ((!c || c.done) && now >= S.nextAt) {
           if (S.sellers.length) {
             const n = S.sellers.shift();
-            n.openAt = now + WALK_MS; n.until = n.openAt + SELLER_MS; n.done = false;
+            n.openAt = now + WALK_MS; n.until = n.openAt + Math.round(SELLER_MS * (PROFILES[n.prof].sell.time || 1)); n.done = false;
             S.seller = n; this.dirty = true;
           } else {
             S.seller = null; S.phase = 'noon'; S.phaseEnd = now + NOON_MS;
@@ -214,7 +224,7 @@ export class Sim {
         if ((!b || b.done) && now >= S.nextAt) {
           if (S.buyers.length) {
             const n = this.makeBuyer(S.buyers.shift());
-            n.openAt = now + WALK_MS; n.until = n.openAt + BUYER_MS; n.done = false;
+            n.openAt = now + WALK_MS; n.until = n.openAt + Math.round(BUYER_MS * (PROFILES[n.prof].buy.time || 1)); n.done = false;
             S.buyer = n; this.dirty = true;
           } else {
             S.buyer = null; this.enterEvening(now);
@@ -271,24 +281,23 @@ export class Sim {
         const st = this.per(c, pid);
         if (amt >= c.ask) return this.buy(p, c, c.ask, now);
         if (amt >= c.F) {
-          if (Math.random() < 0.12) return this.buy(p, c, amt, now, 'Fine. Deal.');
-          const k = 0.45 + 0.1 * p.up.haggler;
+          if (Math.random() < 0.12) return this.buy(p, c, amt, now);
+          const k = 0.45 + 0.1 * p.up.haggler + (PROFILES[c.prof].sell.give || 0);
           const na = nice(c.ask - (c.ask - amt) * k);
-          if (na <= amt * 1.04 || na >= c.ask) return this.buy(p, c, amt, now, 'You drive a hard bargain. Deal.');
+          if (na <= amt * 1.04 || na >= c.ask) return this.buy(p, c, amt, now);
           c.ask = na;
-          st.msg = pick([`How about $${na}?`, `I could do $${na}.`, `Meet me at $${na}.`, `$${na}, final-ish offer.`]);
+          st.msg = say(c.prof, 'counter', { p: na });
           c.until = Math.min(c.until + 2500, c.openAt + SELLER_MS + 8000);
-          if (!this.solo) this.feed(c, `${p.name} haggled the ask to $${na}`);
+          if (!this.solo) this.feed(c, `${p.name} haggled the ask to ${cr(na)}`);
           this.fx({ type: 'haggle', pid });
         } else {
           st.strikes += amt < c.F * 0.5 ? 2 : 1;
-          const limit = 3 + Math.floor(p.up.haggler / 2) + (p.up.haggler >= 3 ? 1 : 0);
-          if (st.strikes >= limit) {
-            st.out = true; st.msg = 'Forget it. I will not sell to you.';
+          if (st.strikes >= this.sellerLimit(p, c)) {
+            st.out = true; st.msg = say(c.prof, 'walk');
             if (!this.solo) this.feed(c, `${p.name} insulted the seller`);
             this.checkAllOut(c, now);
           } else {
-            st.msg = pick(['Is that a joke?', 'No way. Not even close.', 'You are insulting me.', 'Try again, seriously.', 'I know what this is worth.']);
+            st.msg = say(c.prof, 'insult');
           }
           this.fx({ type: 'strike', pid });
         }
@@ -298,7 +307,7 @@ export class Sim {
       case 'pass': {
         const c = S.phase === 'buy' ? S.seller : S.buyer;
         if (!c || c.done) return;
-        const st = this.per(c, pid); st.out = true; st.msg = 'Suit yourself.';
+        const st = this.per(c, pid); st.out = true; st.msg = say(c.prof, 'pass');
         this.checkAllOut(c, now); this.dirty = true;
         return;
       }
@@ -312,8 +321,9 @@ export class Sim {
         if (!(price > 0)) return err('Enter a price.');
         const st = this.per(b, pid);
         st.pitches++;
-        if (inst.fake && hash01(b.id + ':' + inst.uid) < 0.55) {
-          st.out = true; st.msg = 'This is a fake! Get out of here.';
+        const BP = PROFILES[b.prof].buy;
+        if (inst.fake && hash01(b.id + ':' + inst.uid) < (BP.detect ?? 0.55)) {
+          st.out = true; st.msg = say(b.prof, 'fake');
           this.fx({ type: 'strike', pid });
           if (!this.solo) this.feed(b, `${p.name} tried to sell a fake`);
           this.checkAllOut(b, now); this.dirty = true;
@@ -325,16 +335,16 @@ export class Sim {
           const counter = nice(W * rand(0.8, 0.94) * (1 - 0.03 * (st.pitches - 1)));
           if (counter >= price) return this.sell(p, b, inst, price, now);
           st.counter = { uid: inst.uid, price: counter };
-          st.msg = pick([`I'd pay $${counter} for it.`, `How about $${counter}?`, `$${counter}, and we have a deal.`]);
+          st.msg = say(b.prof, 'buyer', { p: counter });
           if (!this.solo) this.feed(b, `${p.name} pitched ${ITEMS[inst.id].n}`);
           this.fx({ type: 'haggle', pid });
         } else {
           st.strikes++;
-          if (st.strikes >= 3 || st.pitches >= 5) { st.out = true; st.msg = 'I am done here.'; this.checkAllOut(b, now); }
-          else st.msg = pick(['Way too rich for me.', 'Ha! No.', 'For that? Dream on.']);
+          if (st.strikes >= 3 + (BP.strikes || 0) || st.pitches >= 5) { st.out = true; st.msg = say(b.prof, 'done'); this.checkAllOut(b, now); }
+          else st.msg = BP.junk && ITEMS[inst.id].t === 0 ? say(b.prof, 'junk') : say(b.prof, 'high');
           this.fx({ type: 'strike', pid });
         }
-        if (st.pitches >= 5 && !st.out) { st.out = true; st.msg = 'I have heard enough.'; this.checkAllOut(b, now); }
+        if (st.pitches >= 5 && !st.out) { st.out = true; st.msg = say(b.prof, 'done'); this.checkAllOut(b, now); }
         this.dirty = true;
         return;
       }
@@ -356,7 +366,7 @@ export class Sim {
         p.inv.splice(idx, 1);
         p.cash += price; p.stats.earned += price;
         p.today?.dumped.push({ id: inst.id, price, paid: inst.paid });
-        this.toast(pid, `Wholesaler paid $${price} for ${ITEMS[inst.id].n}${inst.fake ? ' (it was a fake)' : ''}.`, price >= inst.paid ? 'good' : 'bad');
+        this.toast(pid, `Wholesaler paid ${cr(price)} for ${ITEMS[inst.id].n}${inst.fake ? ' (it was a fake)' : ''}.`, price >= inst.paid ? 'good' : 'bad');
         this.fx({ type: 'coins', pid, amt: price });
         this.dirty = true;
         return;
@@ -391,18 +401,25 @@ export class Sim {
   catMod(cat) { const e = this.s.event; return e && e.cat === cat ? e.mod : 1; }
 
   willing(b, p, inst) {
-    return genuineValue(inst) * b.mult * (1 + 0.06 * p.up.sales + 0.025 * p.up.sign) * this.catMod(ITEMS[inst.id].cat);
+    const BP = PROFILES[b.prof].buy, it = ITEMS[inst.id];
+    const prof = (BP.bonus?.[it.cat] || 1) * (BP.junk && it.t === 0 ? BP.junk : 1);
+    return genuineValue(inst) * b.mult * prof * (1 + 0.06 * p.up.sales + 0.025 * p.up.sign) * this.catMod(it.cat);
   }
 
-  buy(p, c, price, now, line) {
+  sellerLimit(p, c) {
+    return Math.max(1, 3 + Math.floor(p.up.haggler / 2) + (p.up.haggler >= 3 ? 1 : 0) + (PROFILES[c.prof].sell.strikes || 0));
+  }
+
+  buy(p, c, price, now) {
+    const line = say(c.prof, 'deal');
     p.cash -= price; p.stats.bought++; p.stats.spent += price;
     const inst = { ...c.inst, paid: price, day: this.s.day };
     p.inv.push(inst);
     p.today.bought.push({ id: inst.id, price });
-    this.per(c, p.pid).msg = line || 'Pleasure doing business.';
-    c.done = true; c.outcome = { type: 'bought', pid: p.pid, price, text: line || 'Pleasure doing business.' };
+    this.per(c, p.pid).msg = line;
+    c.done = true; c.outcome = { type: 'bought', pid: p.pid, price, text: line };
     this.s.nextAt = now + GAP_MS;
-    this.log(`${p.name} bought ${ITEMS[inst.id].n} for $${price}`);
+    this.log(`${p.name} bought ${ITEMS[inst.id].n} for ${cr(price)}`);
     this.fx({ type: 'buy', pid: p.pid, price, itemId: inst.id });
     this.dirty = true;
   }
@@ -413,10 +430,11 @@ export class Sim {
     const profit = price - inst.paid;
     p.today.sold.push({ id: inst.id, price, paid: inst.paid });
     if (!p.stats.bestFlip || profit > p.stats.bestFlip.profit) p.stats.bestFlip = { id: inst.id, profit, paid: inst.paid, price };
-    this.per(b, p.pid).msg = 'Sold! Thank you.';
-    b.done = true; b.outcome = { type: 'sold', pid: p.pid, price, itemId: inst.id, profit, text: 'Sold! Thank you.' };
+    const line = say(b.prof, 'deal');
+    this.per(b, p.pid).msg = line;
+    b.done = true; b.outcome = { type: 'sold', pid: p.pid, price, itemId: inst.id, profit, text: line };
     this.s.nextAt = now + GAP_MS;
-    this.log(`${p.name} sold ${ITEMS[inst.id].n} for $${price}`);
+    this.log(`${p.name} sold ${ITEMS[inst.id].n} for ${cr(price)}`);
     this.fx({ type: 'sell', pid: p.pid, price, profit, itemId: inst.id });
     this.dirty = true;
   }
@@ -506,7 +524,7 @@ export class Sim {
     if (c && S.phase === 'buy') {
       const st = this.per(c, pid);
       v.seller = {
-        id: c.id, itemId: c.inst.id, cond: c.inst.cond, ask: c.ask, startAsk: c.startAsk,
+        id: c.id, prof: c.prof, lim: this.sellerLimit(p, c), itemId: c.inst.id, cond: c.inst.cond, ask: c.ask, startAsk: c.startAsk,
         openIn: Math.max(0, c.openAt - now), left: Math.max(0, c.until - now), done: !!c.done, outcome: c.outcome || null,
         forMe: c.for === pid, forName: c.for ? S.players[c.for]?.name : null,
         excl: c.for && c.for !== pid && this.live().length > 1 ? Math.max(0, c.openAt + EXCL_MS - now) : 0,
@@ -518,7 +536,7 @@ export class Sim {
     if (b && S.phase === 'sell') {
       const st = this.per(b, pid);
       v.buyer = {
-        id: b.id, cat: b.cat, openIn: Math.max(0, b.openAt - now), left: Math.max(0, b.until - now),
+        id: b.id, prof: b.prof, lim: 3 + (PROFILES[b.prof].buy.strikes || 0), cat: b.cat, openIn: Math.max(0, b.openAt - now), left: Math.max(0, b.until - now),
         done: !!b.done, outcome: b.outcome || null,
         forMe: b.for === pid, forName: b.for ? S.players[b.for]?.name : null,
         excl: b.for && b.for !== pid && this.live().length > 1 ? Math.max(0, b.openAt + EXCL_MS - now) : 0,
@@ -537,7 +555,7 @@ export class Sim {
     if (L >= 2) {
       const spread = 0.5 / L;
       const guess = nice(c.F * (1 + (hash01(p.pid + 'h' + c.id) - 0.5) * spread));
-      mood += ` Would probably take about $${guess}.`;
+      mood += ` Would probably take about ${cr(guess)}.`;
     }
     return mood;
   }
