@@ -96,11 +96,15 @@ js/profiles.js    customer types: haggling behavior and speech lines
 js/art.js         Mars scene, humans/astronauts/aliens/droids, pixel font
 js/net.js         PeerJS networking (host-authoritative star)
 js/sound.js       WebAudio sound effects
+fonts/            Tiny5 and Press Start 2P pixel fonts (SIL Open Font License)
 amplify.yml       AWS Amplify config (no build)
 ```
 
 The game canvas is 384x216 and is scaled by a whole number to fit the window,
-so every pixel lands on the grid.
+so every pixel lands on the grid. The menus and panels use the same pixel size:
+CSS sizes are in multiples of `--u` (one game pixel), and both fonts are drawn at
+8 font pixels per em so one font pixel equals one game pixel. Characters have no
+black outlines; their edges are shaded from their own colors.
 
 ## Run locally
 

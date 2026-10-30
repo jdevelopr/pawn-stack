@@ -115,17 +115,18 @@ export const SPRITES = {
 ...oakaao...
 ...oooooo...`,
   laptop: `
-............
 ..oooooooo..
-..occccwco..
-..occccccco.
-..occcccco..
-..occCCCco..
-..oooooooo..
-.oaaaaaaaao.
-oakakakakaao
+..oggggggo..
+..ogccccgo..
+..ogcwccgo..
+..ogccccgo..
+..ogccccgo..
+..oggggggo..
+.oooooooooo.
+oaaaaaaaaaao
+okakakakakao
 oaaaakkaaaao
-oooooooooooo`,
+.oooooooooo.`,
   tv: `
 ....o..o....
 .....oo.....
@@ -197,28 +198,30 @@ oaa......aao
 ..oaaaaao...
 ...ooooo....`,
   violin: `
-.......ook..
-......oko...
-......ok....
-....ooko....
-...oaako....
-...oakao....
-....oko.....
-...oakao....
-..oakkkao...
-..oaakaao...
+.....oo.....
+.....ok.....
+.....ok.....
+....oook....
+....okoo....
 ...oaaao....
-....ooo.....`,
+..oaaaaao...
+..oaakaao...
+...oakao....
+..oaakaao...
+.oaaakaaao..
+.oaaaaaaao..
+..oaaaaao...
+...ooooo....`,
   trumpet: `
-............
-.........oo.
-...ooo..oao.
-...oco.oaao.
-oooocoooaaao
-oaaaaaaaaaao
-oooooooooaao
-.........oao
-..........oo`,
+.............o
+....o.o.o...oo
+...ooooooo.oao
+oooaaaaaaaoaao
+oaaaawwaaaaaao
+oooaaaaaaaoaao
+...ooooooo.oao
+............oo
+.............o`,
   record: `
 ...oooooo...
 ..okkkkkko..
@@ -253,17 +256,18 @@ okkkkkkkkgko
 .oooooooooo.
 ..o......o..`,
   mic: `
-...oooo.....
-..oggggo....
-..okgkgo....
-..ogkgko....
-...oaao.....
-....aa......
-....aa......
-....aa......
-....aa......
-..oaaaao....
-..okkkko....`,
+....oooo....
+...oggggo...
+...okgkgo...
+...ogkgko...
+...oggggo...
+....oaao....
+....oaao....
+....oaao....
+....oaao....
+....oaao....
+....oAAo....
+.....oo.....`,
   card: `
 ..oooooooo..
 ..owwwwwwo..
@@ -384,29 +388,33 @@ oooooooooooo`,
 ...oaaaao...
 ....oooo....`,
   scroll: `
-.oo......oo.
-oaaoooooooao
-oaawwwwwwwao
-.oawkkwwwwo.
-..owwwkkwwo.
-..owcwwwwwo.
-..owwwcckwo.
-..owwwwwwwo.
-.oawwwwwwao.
-oaaoooooooao
-.oo......oo.`,
+.oooooooooo.
+oaaaaaaaaaao
+oAAAAAAAAAAo
+.owwwwwwwwo.
+.owkkkkwwwo.
+.owwwwwwwwo.
+.owkkkkkkwo.
+.owwwwwwwwo.
+.owkkkwwwwo.
+.owwwwwwwwo.
+oaaaaaaaaaao
+oAAAAAAAAAAo
+.oooooooooo.`,
   map: `
-.oo......oo.
-oaaoooooooao
-oaacccwwwwao
-.oacccwwkwo.
-..owccwkwwo.
-..owwwkwkwo.
-..owwcccwwo.
-..owcccccwo.
-.oawwwwwwao.
-oaaoooooooao
-.oo......oo.`,
+.oooooooooo.
+oaaaaaaaaaao
+oAAAAAAAAAAo
+.owwccwwwwo.
+.owccccwwwo.
+.owwcccwkwo.
+.owwwwwwwwo.
+.owwwwcccwo.
+.owkwwcccwo.
+.owwwwwccwo.
+oaaaaaaaaaao
+oAAAAAAAAAAo
+.oooooooooo.`,
   clock: `
 ....oooo....
 ..ooaaaaoo..
@@ -466,15 +474,17 @@ o.ccaaaaco.g.
 .oaaakkaaao.
 .oooooooooo.`,
   book: `
-............
-..ooooooooo.
-.oaaaaaaaao.
-.oacccccao..
-oaacwcwcao..
-oaacccccao..
-oaaaaaaaao..
-oawwwwwwwo..
-.ooooooooo..`,
+.oooooooooo.
+oAaaaaaaaaao
+oAaaaaaaaaao
+oAaccccccaao
+oAacwccccaao
+oAaccccccaao
+oAaaaaaaaaao
+oAaaaaaaaaao
+oAaaaaaaaaao
+oAowwwwwwwwo
+.ooooooooooo`,
   drill: `
 ..............
 ..oooooooo....
@@ -501,18 +511,18 @@ okggggggo...
 ....oao.....
 ....ooo.....`,
   wrench: `
-.oo.....oo..
-oggo...ogo..
-ogggo.oggo..
-.ogggogggo..
-..ogggggo...
-...oggo.....
-...oggo.....
-..oaaao.....
-..oaao......
-.oaaao......
-.oaao.......
-.ooo........`,
+..oo..oo....
+.oao..oao...
+.oaaooaao...
+..oaaaao....
+...oaao.....
+...oaao.....
+...oaao.....
+...oaao.....
+...oaao.....
+..oaaaao....
+.oaa..aao...
+.oo....oo...`,
   toolbox: `
 ....oooo....
 ....o..o....
@@ -525,14 +535,16 @@ ogggo.oggo..
 .oaaaaaaaao.
 .oooooooooo.`,
   saw: `
-............
-.ooo........
-oaaao.......
-oaoaoooooooo
-oaaaogggggwo
-.oaaoggggggo
-..ooogggggo.
-....okokoko.`,
+..............
+..............
+.ooooo........
+oaaaaaooooooo.
+oaoooaogggggwo
+oaaaaaoggggggo
+oaoooaogggggo.
+oaaaaaoggggo..
+.oooooooooo...
+.....okokok...`,
   chainsaw: `
 ..............
 ..ooooo.......
@@ -661,25 +673,27 @@ oaoaacaaaoao
 .oakakakaao.
 .oooooooooo.`,
   car: `
-............
-....oooo....
-...oacwao...
-.ooaaaaaaoo.
-oaaaaaaaaaao
-oaawaaaaaaao
-oookooooooko
-..kgk....kgk
-...k......k.`,
+....oooooo....
+...oacccccao..
+..oacwcccccao.
+.ooaaaaaaaaaoo
+oaaaaaaaaaaaao
+ocaaaaaaaaaaco
+oaooooaaooooao
+.ookkoooookkoo
+..okgko.okgko.
+...ooo...ooo..`,
   board: `
-............
-...ooooo....
-..owwwwwo...
-.oowkwwwoo..
-.owwwwwowo..
-.owwkwwowo..
-.owwwwwoo...
-.owwwkwo....
-.ooooooo....`,
+oooooooooooo
+owkwkwkwkwko
+okwcwkwkwkwo
+owkwkwkwkwko
+okwkwkwkwkwo
+owkwkwkwkcko
+okwkwkwkwkwo
+oooooooooooo
+oaaaaaaaaaao
+oooooooooooo`,
   doll: `
 ...oooo.....
 ..occcco....
@@ -760,13 +774,14 @@ okwkko.okwkko
 okkkko.okkkko
 .oooo...oooo.`,
   belt: `
-............
-............
-oooooooooooo
-aaaaaoccccoa
-aaaaaoc..coa
-aaaaaoccccoa
-oooooooooooo`,
+..............
+..............
+..............
+oooooooooooooo
+oaaaoccccccoao
+oaaaocoooocoao
+oaaaoccccccoao
+oooooooooooooo`,
   chip: `
 ...o.o.o....
 ..ooooooo...
@@ -791,15 +806,17 @@ ooakkkkkaoo.
 .oaaaokaaao.
 .oooooooooo.`,
   drone: `
-kkkk....kkkk
+ggggg..ggggg
+....o..o....
+..oooooooo..
+.oaaaaaaaao.
+oawaaaaaaaao
+oaaaookoaaao
+oaaaokckoaao
+.oaaaookaao.
+..oooooooo..
 ...o....o...
-...oooooo...
-.ooaaaaaaoo.
-oaaawaaaaaao
-oaacccccaaao
-.ooackcaooo.
-...ooooo....
-....o..o....`,
+..oo....oo..`,
   canister: `
 ....oooo....
 ...oggggo...
@@ -909,15 +926,15 @@ oaAaaacaaaAo
 ..ooAAAAoo..
 ....oooo....`,
   bar: `
-............
-............
-...oooooooo.
-..oawwaaaao.
-.oaaaaaaaoao
-oooooooooAAo
-oAAAAAAAAoAo
-oAAAAAAAAoo.
-oooooooooo..`,
+..............
+..............
+..............
+...oooooooo...
+..owaaaaaaao..
+.owaaaaaaaaao.
+oAAAAAAAAAAAAo
+oAAAAAAAAAAAAo
+oooooooooooooo`,
   raygun: `
 .............
 ....ooooo....
@@ -991,13 +1008,14 @@ oakaakaakaao
 ...c.c..c...
 ..c..c...c..`,
   key: `
-............
-.oooo.......
-oaaaao......
-oaoaaoooooo.
-oaoaaaaaaao.
-oaaaacocoao.
-.oooo.o.oo..`,
+..............
+..oooo........
+.oaaaao.......
+oaaooaao......
+oao..oaooooooo
+oaaooaaaaaaaao
+.oaaaaooaooaoo
+..oooo.oo.oo..`,
 };
 
 // name | sprite | value | tier | colorA | colorB      (25 per category, in CATS order)
@@ -1291,26 +1309,64 @@ function grid(name) {
   return (parsed[name] = rows);
 }
 
-/** Draw item sprite at integer (x,y) top-left in a 14x14 box, bottom-aligned. */
-export function drawItem(ctx, itemId, x, y) {
+function hexRgb(hex) {
+  if (hex.startsWith('rgb')) return hex.match(/\d+/g).map(Number);
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function tone(hex, f, hueShift = 0) {
+  // Darker shades drift toward cool purple, highlights toward warm cream: a classic pixel-art ramp.
+  let [r, g, b] = hexRgb(hex);
+  if (f < 1) { r = r * f + 30 * (1 - f) * 0.4; g = g * f + 18 * (1 - f) * 0.4; b = b * f + 60 * (1 - f) * 0.6; }
+  else { const k = f - 1; r += (255 - r) * k; g += (250 - g) * k; b += (225 - b) * k * 0.85; }
+  const c = v => Math.max(0, Math.min(255, Math.round(v)));
+  return `rgb(${c(r)},${c(g)},${c(b)})`;
+}
+
+const FILL = new Set(['a', 'A', 'c', 'C', 'g', 'k', 'w']);
+const spriteCache = new Map();
+/** Render an item once to a 14x14 canvas with automatic top-left lighting and soft outlines. */
+function itemCanvas(itemId) {
+  if (spriteCache.has(itemId)) return spriteCache.get(itemId);
   const it = ITEMS[itemId];
   const g = grid(it.sp);
   const w = Math.max(...g.map(r => r.length));
-  const ox = Math.round(x + (SPRITE_SIZE - w) / 2);
-  const oy = Math.round(y + SPRITE_SIZE - g.length);
-  const pal = {
-    o: '#211a2b', a: it.a, A: shade(it.a, 0.7), c: it.b, C: shade(it.b, 0.7),
-    w: '#f6f1e6', g: '#a0a6b2', k: '#3a3348',
-  };
+  const ox = Math.round((SPRITE_SIZE - w) / 2), oy = SPRITE_SIZE - g.length;
+  const base = { a: it.a, A: tone(it.a, 0.68), c: it.b, C: tone(it.b, 0.68), w: '#f6f1e6', g: '#a7adba', k: '#3a3348' };
+  const at = (r, c) => (g[r] && g[r][c]) || '.';
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = SPRITE_SIZE;
+  const x = cv.getContext('2d');
   for (let r = 0; r < g.length; r++) {
     for (let c = 0; c < g[r].length; c++) {
       const ch = g[r][c];
-      const col = pal[ch];
-      if (!col) continue;
-      ctx.fillStyle = col;
-      ctx.fillRect(ox + c, oy + r, 1, 1);
+      if (ch === '.' || ch === ' ') continue;
+      let col;
+      if (ch === 'o') {
+        // selective outline: tint the outline by the darkest neighbouring fill
+        const nb = [at(r - 1, c), at(r + 1, c), at(r, c - 1), at(r, c + 1)].find(n => n === 'a' || n === 'c' || n === 'A' || n === 'C');
+        col = nb ? tone(base[nb.toLowerCase()], 0.28) : '#1e1828';
+      } else {
+        col = base[ch];
+        if (!col) continue;
+        if (ch === 'a' || ch === 'c' || ch === 'g' || ch === 'k') {
+          const up = at(r - 1, c), dn = at(r + 1, c), rt = at(r, c + 1);
+          const src = ch === 'g' ? '#a7adba' : ch === 'k' ? '#3a3348' : base[ch];
+          if (!FILL.has(up)) col = tone(src, 1.22);
+          else if (!FILL.has(dn) || !FILL.has(rt)) col = tone(src, 0.8);
+        }
+      }
+      x.fillStyle = col;
+      x.fillRect(ox + c, oy + r, 1, 1);
     }
   }
+  spriteCache.set(itemId, cv);
+  return cv;
+}
+
+/** Draw item sprite at integer (x,y) top-left in a 14x14 box, bottom-aligned. */
+export function drawItem(ctx, itemId, x, y) {
+  ctx.drawImage(itemCanvas(itemId), Math.round(x), Math.round(y));
 }
 
 const iconCache = new Map();
@@ -1318,9 +1374,7 @@ const iconCache = new Map();
 export function itemIcon(itemId, scale = 4) {
   const key = itemId + ':' + scale;
   if (iconCache.has(key)) return iconCache.get(key);
-  const c = document.createElement('canvas');
-  c.width = c.height = SPRITE_SIZE;
-  drawItem(c.getContext('2d'), itemId, 0, 0);
+  const c = itemCanvas(itemId);
   const big = document.createElement('canvas');
   big.width = big.height = SPRITE_SIZE * scale;
   const bx = big.getContext('2d');

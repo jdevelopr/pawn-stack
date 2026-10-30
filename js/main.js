@@ -12,7 +12,7 @@ import { createHost, createClient, clientId, joinUrl, roomFromUrl } from './net.
 import {
   W, H, WORLD_W, FLOOR, ZONES, COUNTER_X, CUSTOMER_X,
   drawScene, drawCounterFront, drawPerson, drawNight, lookFromSeed, bubble, pixelTextOutlined, textW,
-  drawAstronaut, drawGrey, drawGlorp, drawZix, drawBot,
+  drawChar,
 } from './art.js';
 import { sfx, setMuted, isMuted } from './sound.js';
 import { PROFILES, say } from './profiles.js';
@@ -321,13 +321,56 @@ function autosave() {
   store.set(SAVE_KEY, JSON.stringify(app.sim.serialize()));
 }
 
+let scale = 3;
+const SCALE = () => scale;
 function fit() {
-  const s = Math.max(1, Math.floor(Math.min(innerWidth / W, innerHeight / H)));
+  const s = scale = Math.max(1, Math.floor(Math.min(innerWidth / W, innerHeight / H)));
   const st = $('#stage');
   st.style.width = W * s + 'px'; st.style.height = H * s + 'px';
   document.documentElement.style.setProperty('--s', s);
 }
-addEventListener('resize', fit);
+addEventListener('resize', () => { fit(); drawBackdrop(); });
+fit();
+
+/* menu backdrop: a pixel-art starfield with Mars, drawn at game resolution */
+function drawBackdrop() {
+  const bd = document.getElementById('backdrop');
+  if (!bd) return;
+  const bw = Math.ceil(innerWidth / scale), bh = Math.ceil(innerHeight / scale);
+  bd.width = bw; bd.height = bh;
+  const x = bd.getContext('2d');
+  const bands = ['#0b0d18', '#0e1020', '#121228', '#161430', '#1a1636'];
+  bands.forEach((c, i) => { x.fillStyle = c; x.fillRect(0, Math.floor(i * bh / bands.length), bw, Math.ceil(bh / bands.length)); });
+  let seed = 9;
+  const r = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < bw * bh / 400; i++) {
+    x.fillStyle = ['#ffffff', '#a0d8ff', '#ffd27a', '#6a7090'][(r() * 4) | 0];
+    x.fillRect((r() * bw) | 0, (r() * bh) | 0, 1, 1);
+  }
+  // Mars: dithered sphere with polar cap and craters
+  const R = Math.round(Math.min(bw, bh) * 0.22), cx = bw - Math.round(R * 1.15), cy = bh - Math.round(R * 1.2);
+  for (let py = -R; py <= R; py++) for (let px = -R; px <= R; px++) {
+    const d = px * px + py * py;
+    if (d > R * R) continue;
+    const lx = (-px - py) / (R * 1.41);           // light from top-left
+    const z = Math.sqrt(1 - d / (R * R));
+    const lit = lx * 0.6 + z * 0.6;
+    const dither = 0;
+    const v = lit + dither;
+    x.fillStyle = v > 0.95 ? '#ff9a6a' : v > 0.7 ? '#e5704a' : v > 0.4 ? '#c4553a' : v > 0.15 ? '#8e3a2a' : '#54201e';
+    if (py < -R * 0.82 && v > 0.3) x.fillStyle = '#f4ece0';
+    x.fillRect(cx + px, cy + py, 1, 1);
+  }
+  for (const [ox, oy, cr] of [[-0.3, 0.1, 0.12], [0.2, -0.3, 0.08], [0.1, 0.35, 0.1], [-0.5, -0.2, 0.06]]) {
+    const ccx = cx + Math.round(ox * R), ccy = cy + Math.round(oy * R), rr = Math.max(2, Math.round(cr * R));
+    for (let py = -rr; py <= rr; py++) for (let px = -rr; px <= rr; px++) {
+      if (px * px + py * py > rr * rr) continue;
+      x.fillStyle = (px + py < 0) ? '#6e2a22' : '#a84a34';
+      x.fillRect(ccx + px, ccy + py, 1, 1);
+    }
+  }
+}
+drawBackdrop();
 
 /* ---------------------------------------------------------- view intake --- */
 
@@ -497,15 +540,15 @@ function render(t) {
   ctx.save(); ctx.translate(-c, 0);
   // staff
   const up = me?.up || {};
-  if (up.appraise) drawBot(ctx, 348, FLOOR, { body: '#c9ced8', eye: '#4fe0d0' }, -1, t, { monocle: true });
-  if (up.haggler) drawPerson(ctx, 262, FLOOR - 2, STAFF.haggler, 0, -1, { tie: '#d6453d' });
-  if (up.sales) drawPerson(ctx, 500, FLOOR, STAFF.sales, Math.floor(t / 900) % 3 === 0 ? 0 : 0, Math.floor(t / 2400) % 2 ? 1 : -1, { badge: true });
-  if (up.restore) drawPerson(ctx, 732, FLOOR, STAFF.restore, 0, 1, { apron: '#6b3d22', glasses: true });
-  if (up.security >= 3) drawBot(ctx, 220, FLOOR, { body: '#3f5a8a', eye: '#ff4a5a', light: '#ff4a5a' }, 1, t, { badge: true });
+  if (up.appraise) drawChar(ctx, 'bot', 348, FLOOR, { body: '#c9ced8', eye: '#4fe0d0' }, 0, -1, { monocle: true }, t);
+  if (up.haggler) drawChar(ctx, 'person', 262, FLOOR - 2, STAFF.haggler, 0, -1, { tie: '#d6453d' });
+  if (up.sales) drawChar(ctx, 'person', 500, FLOOR, STAFF.sales, 0, Math.floor(t / 2400) % 2 ? 1 : -1, { badge: true });
+  if (up.restore) drawChar(ctx, 'person', 732, FLOOR, STAFF.restore, 0, 1, { apron: '#6b3d22', glasses: true });
+  if (up.security >= 3) drawChar(ctx, 'bot', 220, FLOOR, { body: '#3f5a8a', eye: '#ff4a5a', light: '#ff4a5a' }, 0, 1, { badge: true }, t);
   // customers
   for (const n of npcs) drawCustomer(n, t);
   // keeper
-  drawPerson(ctx, keeper.x, FLOOR, KEEPER(me?.color), keeper.frame, keeper.dir, { apron: '#efe0b8' });
+  drawChar(ctx, 'person', keeper.x, FLOOR, KEEPER(me?.color), keeper.frame, keeper.dir, { apron: '#efe0b8' });
   ctx.restore();
 
   // counter (in front of keeper)
@@ -576,11 +619,11 @@ function customerLook(prof, seed) {
 function drawCustomer(n, t) {
   const extra = { carry: n.leaving ? n.carry : null };
   switch (PROFILES[n.prof]?.kind) {
-    case 'astro': case 'prospector': return drawAstronaut(ctx, n.x, FLOOR, n.look, n.frame, n.dir, extra);
-    case 'grey': return drawGrey(ctx, n.x, FLOOR, n.look, n.frame, n.dir, extra);
-    case 'glorp': return drawGlorp(ctx, n.x, FLOOR, n.look, n.frame, n.dir, extra, t);
-    case 'zix': return drawZix(ctx, n.x, FLOOR, n.look, n.frame, n.dir, extra, t);
-    default: return drawPerson(ctx, n.x, FLOOR, n.look, n.frame, n.dir, { ...extra, monocle: n.look.monocle, glasses: n.look.glasses });
+    case 'astro': case 'prospector': return drawChar(ctx, 'astro', n.x, FLOOR, n.look, n.frame, n.dir, extra);
+    case 'grey': return drawChar(ctx, 'grey', n.x, FLOOR, n.look, n.frame, n.dir, extra);
+    case 'glorp': return drawChar(ctx, 'glorp', n.x, FLOOR, n.look, n.frame, n.dir, extra, t);
+    case 'zix': return drawChar(ctx, 'zix', n.x, FLOOR, n.look, n.frame, n.dir, extra, t);
+    default: return drawChar(ctx, 'person', n.x, FLOOR, n.look, n.frame, n.dir, { ...extra, monocle: !!n.look.monocle, glasses: !!n.look.glasses });
   }
 }
 function whoHtml(c) {
@@ -768,7 +811,7 @@ function renderDeal() {
 }
 
 function strikesHtml(n, max = 3) {
-  let s = '<div class="strikes" data-p="strikes">Patience';
+  let s = '<div class="strikes" data-p="strikes"><span>Patience</span>';
   for (let i = 0; i < max; i++) s += `<i class="${i < max - n ? 'on' : ''}"></i>`;
   return s + '</div>';
 }
@@ -782,7 +825,7 @@ function buyHtml(v, c) {
   const lim = c.lim;
   return `
     ${whoHtml(c)}
-    <div class="item-head"><img class="icon" src="${itemIcon(c.itemId)}" alt="">
+    <div class="item-head"><img class="icon" src="${itemIcon(c.itemId, SCALE())}" alt="">
       <div><div class="item-name">${esc(it.n)}</div>
       <div class="meta">${it.cat} &middot; ${COND[c.cond].n} &middot; ${tierTag(e.tier)}</div></div></div>
     <div class="kv"><span>Appraisal</span><b>${estTxt(e)}</b></div>
@@ -829,8 +872,8 @@ function sellHtml(v, c) {
     ${strikesHtml(c.st.strikes, c.lim)}
     ${el.length ? `<div class="pick-list">${el.map(i => `
       <button class="pick ${i.uid === pickUid[c.id] ? 'on' : ''}" data-uid="${i.uid}">
-        <img class="icon sm" src="${itemIcon(i.id, 3)}" alt="">
-        <span><span class="nm">${esc(ITEMS[i.id].n)}</span><br>${COND[i.cond].n} &middot; paid ${money(i.paid)} &middot; est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</span>
+        <img class="icon sm" src="${itemIcon(i.id, SCALE())}" alt="">
+        <span class="pick-txt"><span class="nm">${esc(ITEMS[i.id].n)}</span><span>${COND[i.cond].n} &middot; paid ${money(i.paid)} &middot; est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</span></span>
       </button>`).join('')}</div>
       <div class="offer-row">
         <button class="btn small" data-step="-1">-</button>
@@ -883,7 +926,7 @@ function renderInv(force) {
   el.innerHTML = `${closeBtn}<h2>Inventory ${inv.length}/${v.me.cap}</h2>
     ${inv.length ? `<div class="inv-grid">${inv.map((i, n) => `
       <div class="inv-card" style="--i:${n}">
-        <img class="icon sm" src="${itemIcon(i.id, 3)}" alt="">
+        <img class="icon sm" src="${itemIcon(i.id, SCALE())}" alt="">
         <div><div class="nm">${esc(ITEMS[i.id].n)}</div>
         <div class="meta">${COND[i.cond].n} &middot; ${tierTag(i.est.tier)}</div>
         <div class="meta">Paid ${money(i.paid)} &middot; est ${estTxt(i.est)}</div>
@@ -912,7 +955,7 @@ function renderUpg(force) {
       const lvl = v.me.up[u.id], max = u.cost.length, cost = u.cost[lvl];
       const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
       return `<div class="upg">
-        <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">STAFF ${money(u.wage)}/SOL PER LVL</span>` : ''}</div>
+        <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">STAFF ${money(u.wage)}/SOL</span>` : ''}</div>
         <div class="ds">${esc(u.desc)}</div>
         <button class="btn ${lvl < max ? 'primary' : ''}" data-up="${u.id}" ${!eve || lvl >= max || cost > v.me.cash ? 'disabled' : ''}>${lvl >= max ? 'MAX' : money(cost)}</button>
       </div>`;

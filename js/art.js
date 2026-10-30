@@ -6,6 +6,7 @@ import { drawItem, ITEMS } from './items.js';
 
 export const W = 384, H = 216, WORLD_W = 960, FLOOR = 184;
 export const O = '#211a2b';
+const EYE = '#1a1220'; // facial features stay dark; outlines (O) on characters get softened
 
 export const ZONES = {
   counter: { x0: 268, x1: 348, label: 'COUNTER' },
@@ -136,7 +137,7 @@ export function drawPerson(ctx, x, y, L, frame = 0, dir = 1, extra = {}) {
   if (L.style === 3) { r(4, 0, 6, 1, L.hair); r(3, 0, 8, 1, O); }
   if (L.style === 2) { r(f ? 3 : 10, 5, 1, 3, L.hair); }
   const ex = f ? 8 : 5;
-  r(ex, 5, 1, 2, O);
+  r(ex, 5, 1, 2, EYE);
   r(f ? 11 : 2, 6, 1, 2, L.skin); r(f ? 12 : 1, 6, 1, 2, O);
   r(f ? 7 : 5, 9, 3, 1, sk);
   if (extra.monocle) { r(ex - 1, 4, 3, 1, '#f2c14e'); r(ex - 1, 7, 3, 1, '#f2c14e'); r(ex - 1, 5, 1, 2, '#f2c14e'); r(ex + 1, 5, 1, 2, '#f2c14e'); r(ex + 1, 8, 1, 4, '#f2c14e'); }
@@ -176,6 +177,8 @@ function dome(ctx, cx, base, r, c, glass) {
   for (let dy = 0; dy <= r; dy++) { const w = Math.round(Math.sqrt(r * r - dy * dy)); rect(ctx, cx - w, base - dy, w * 2, 1, c); }
   for (let dy = 2; dy <= r - 2; dy++) { const w = Math.round(Math.sqrt((r - 2) * (r - 2) - dy * dy)); rect(ctx, cx - w, base - dy, w * 2, 1, glass); }
   rect(ctx, cx - r, base, r * 2, 2, c);
+  for (const k of [-0.5, 0, 0.5]) { const rx = Math.round(cx + k * r); const hh = Math.round(Math.sqrt(Math.max(0, r * r - (k * r) ** 2))); rect(ctx, rx, base - hh + 1, 1, hh, c); }
+  rect(ctx, cx - Math.round(r * 0.55), base - Math.round(r * 0.72), Math.max(2, Math.round(r * 0.25)), 1, '#ffffff');
 }
 
 export function drawScene(ctx, cam, S) {
@@ -222,12 +225,12 @@ export function drawScene(ctx, cam, S) {
   // regolith
   rect(ctx, -10, FLOOR, 218, H - FLOOR, night ? '#5a2e26' : '#b65a3a');
   rect(ctx, -10, FLOOR, 218, 2, night ? '#6e3a2e' : '#d0744c');
-  for (const r of ROCKS) rect(ctx, r.x, r.y, r.w, 2, night ? '#43221c' : '#8e4228');
+  for (const r of ROCKS) { rect(ctx, r.x, r.y, r.w, 2, night ? '#43221c' : '#8e4228'); rect(ctx, r.x, r.y, r.w - 1, 1, night ? '#6e3a2e' : '#d27a52'); }
   // landing pad and beacon
   rect(ctx, 40, FLOOR + 6, 80, 3, '#5d616e'); for (let x = 42; x < 118; x += 8) rect(ctx, x, FLOOR + 6, 4, 3, '#f2c14e');
   rect(ctx, 96, 120, 2, 64, '#3a3646'); rect(ctx, 92, 116, 10, 4, '#3a3646');
   rect(ctx, 96, 112, 2, 4, '#8f949e');
-  if (Math.floor(t / 600) % 2) { rect(ctx, 95, 110, 4, 3, '#ff4a5a'); if (night) { ctx.fillStyle = 'rgba(255,74,90,0.18)'; ctx.fillRect(89, 104, 16, 14); } }
+  if (Math.floor(t / 600) % 2) { rect(ctx, 95, 110, 4, 3, '#ff4a5a'); rect(ctx, 96, 109, 2, 1, '#ffb0a8'); }
   else rect(ctx, 95, 110, 4, 3, '#7a2a30');
   // parked rover
   rect(ctx, 20, 164, 38, 12, O); rect(ctx, 21, 165, 36, 10, '#e8e2d4'); rect(ctx, 40, 157, 16, 9, O); rect(ctx, 41, 158, 14, 7, '#7cc6f2');
@@ -243,7 +246,7 @@ export function drawScene(ctx, cam, S) {
   rect(ctx, 208, 0, WORLD_W - 208, 14, '#1c1f2e');
   rect(ctx, 208, 14, WORLD_W - 208, 126, '#3e4a5e');
   for (let x = 208; x < WORLD_W; x += 32) {
-    rect(ctx, x, 14, 1, 126, '#2c3546');
+    rect(ctx, x, 14, 1, 122, '#2c3546'); rect(ctx, x + 1, 16, 1, 120, '#4c5a72');
     rect(ctx, x + 3, 18, 1, 1, '#6a7890'); rect(ctx, x + 28, 18, 1, 1, '#6a7890');
     rect(ctx, x + 3, 132, 1, 1, '#6a7890'); rect(ctx, x + 28, 132, 1, 1, '#6a7890');
   }
@@ -251,12 +254,18 @@ export function drawScene(ctx, cam, S) {
   rect(ctx, 208, 14, WORLD_W - 208, 2, '#6a7890');
   rect(ctx, 208, 136, WORLD_W - 208, 48, '#2c3546');
   rect(ctx, 208, 136, WORLD_W - 208, 2, night ? '#4fe0d0' : '#55657e');
-  for (let x = 216; x < WORLD_W; x += 24) { rect(ctx, x, 146, 16, 30, '#252d3c'); rect(ctx, x, 146, 16, 1, '#3e4a5e'); }
+  for (let x = 208; x < WORLD_W; x += 32) { rect(ctx, x, 138, 1, 46, '#1e2533'); rect(ctx, x + 1, 138, 1, 46, '#36415a'); }
   // floor: grating
+  // floor: clean deck plates, seams aligned with the wall panels
   rect(ctx, 208, FLOOR, WORLD_W - 208, H - FLOOR, '#4a4d58');
-  rect(ctx, 208, FLOOR, WORLD_W - 208, 2, '#6b6f7a');
-  for (let y = FLOOR + 4; y < H; y += 4) rect(ctx, 208, y, WORLD_W - 208, 1, '#3a3d46');
-  for (let x = 210; x < WORLD_W; x += 6) rect(ctx, x, FLOOR + 2, 1, H - FLOOR, '#3a3d46');
+  rect(ctx, 208, FLOOR, WORLD_W - 208, 1, '#8f949e');
+  rect(ctx, 208, FLOOR + 1, WORLD_W - 208, 1, '#6b6f7a');
+  rect(ctx, 208, FLOOR + 15, WORLD_W - 208, 1, '#3a3d46');
+  rect(ctx, 208, FLOOR + 16, WORLD_W - 208, 1, '#5d616e');
+  for (let x = 208; x < WORLD_W; x += 32) {
+    rect(ctx, x, FLOOR + 2, 1, 13, '#3a3d46'); rect(ctx, x + 16, FLOOR + 17, 1, H - FLOOR - 17, '#3a3d46');
+    rect(ctx, x + 3, FLOOR + 4, 1, 1, '#6b6f7a'); rect(ctx, x + 28, FLOOR + 4, 1, 1, '#6b6f7a');
+  }
   // airlock door frame with hazard stripes
   rect(ctx, 194, 140, 4, 44, '#2a2d38'); rect(ctx, 204, 140, 4, 44, '#2a2d38');
   for (let y = 140; y < 184; y += 6) { rect(ctx, 194, y, 4, 3, '#f2c14e'); rect(ctx, 204, y + 3, 4, 3, '#f2c14e'); }
@@ -264,13 +273,13 @@ export function drawScene(ctx, cam, S) {
   // porthole behind the counter
   disc(ctx, 244, 62, 21, O); disc(ctx, 244, 62, 19, '#8f949e'); disc(ctx, 244, 62, 16, O); disc(ctx, 244, 62, 15, sky[2]);
   if (!night) { rect(ctx, 230, 66, 28, 11, mesa); rect(ctx, 236, 62, 14, 4, mesa); } else { rect(ctx, 238, 54, 1, 1, '#fff6d8'); rect(ctx, 250, 60, 1, 1, '#fff6d8'); rect(ctx, 242, 70, 2, 2, '#c9b8a0'); }
-  rect(ctx, 236, 50, 3, 2, 'rgba(255,255,255,0.5)');
+  rect(ctx, 234, 50, 3, 1, '#e8f4ff'); rect(ctx, 233, 51, 1, 2, '#e8f4ff');
   for (const [bx, by] of [[244, 42], [264, 62], [244, 82], [224, 62]]) rect(ctx, bx - 1, by - 1, 2, 2, '#c9ced8');
   // strip lights
   for (const lx of [300, 470, 640, 860]) {
     rect(ctx, lx - 14, 14, 28, 4, '#1c1f2e');
     rect(ctx, lx - 12, 18, 24, 2, night ? '#bff8f0' : '#e8f4ff');
-    if (night) { ctx.fillStyle = 'rgba(110,240,224,0.07)'; ctx.fillRect(lx - 20, 20, 40, 40); }
+
   }
   // office bulkhead
   rect(ctx, 786, 14, 8, 34, '#2c3546'); rect(ctx, 786, 48, 8, 2, '#f2c14e');
@@ -327,7 +336,7 @@ function drawSign(ctx, lvl, night, t) {
   for (let i = 0; i < lvl; i++) rect(ctx, x + 26 + i * 5, y + 15, 3, 3, '#ffb347');
   // three planets, the pawnbroker's balls in orbit
   for (const [bx, by, c] of [[x + 70, y + 5, '#ff6f61'], [x + 78, y + 5, '#ffb347'], [x + 74, y + 13, '#4fe0d0']]) { rect(ctx, bx, by, 6, 6, O); rect(ctx, bx + 1, by + 1, 4, 4, c); rect(ctx, bx + 1, by + 1, 1, 1, '#fff'); }
-  if (night && lvl >= 1) { ctx.fillStyle = 'rgba(255,111,97,0.10)'; ctx.fillRect(x - 4, y - 4, w + 8, h + 8); }
+
 }
 
 export const SHELF_SLOTS = [];
@@ -360,7 +369,7 @@ export function drawCounterFront(ctx, cam, S) {
   rect(ctx, 313, 159, 3, 2, '#ffb347'); rect(ctx, 318, 159, 3, 2, '#4fe0d0'); rect(ctx, 323, 159, 3, 2, '#ff6f61');
   if (S.counterItem != null) {
     drawItem(ctx, S.counterItem, 250, 150);
-    ctx.fillStyle = 'rgba(79,224,208,0.18)'; ctx.fillRect(248, 162, 18, 2);
+    rect(ctx, 249, 163, 16, 1, '#4fe0d0');
   }
   ctx.restore();
 }
@@ -368,10 +377,6 @@ export function drawCounterFront(ctx, cam, S) {
 export function drawNight(ctx, phase) {
   if (phase === 'evening' || phase === 'over') {
     ctx.fillStyle = 'rgba(16,12,48,0.32)'; ctx.fillRect(0, 0, W, H);
-  } else if (phase === 'dawn') {
-    ctx.fillStyle = 'rgba(255,140,100,0.08)'; ctx.fillRect(0, 0, W, H);
-  } else if (phase === 'sell' || phase === 'noon') {
-    ctx.fillStyle = 'rgba(120,150,255,0.05)'; ctx.fillRect(0, 0, W, H);
   }
 }
 
@@ -396,8 +401,8 @@ export function drawAstronaut(ctx, x, y, L, frame = 0, dir = 1, extra = {}) {
   r(2, -1, 10, 14, O); r(1, 0, 12, 12, O);
   r(2, 0, 10, 12, '#e8ecf2'); r(3, 0, 8, 1, '#ffffff');
   r(f ? 4 : 2, 3, 8, 7, O); r(f ? 5 : 3, 4, 6, 5, L.visor || '#2a4a8a');
-  r(f ? 6 : 4, 5, 2, 1, 'rgba(255,255,255,0.8)');
-  if (L.faceVisible) { r(f ? 8 : 5, 6, 1, 1, '#211a2b'); }
+  r(f ? 6 : 4, 5, 2, 1, '#e8f4ff');
+  if (L.faceVisible) { r(f ? 8 : 5, 6, 1, 1, EYE); }
   r(f ? 2 : 11, -4, 1, 4, '#8f949e'); r(f ? 2 : 11, -5, 1, 1, '#ff4a5a');
   if (extra.carry != null) drawItem(ctx, extra.carry, Math.round(x) - 7, Y - 18);
 }
@@ -438,7 +443,7 @@ export function drawGlorp(ctx, x, y, L, frame = 0, dir = 1, extra = {}, t = 0) {
     if (i > 0 && i < h - 1) { ctx.fillStyle = i > h - 5 ? bd : body; ctx.fillRect(rx + 1, ry, rw - 2, 1); }
   }
   ctx.fillStyle = bl; ctx.fillRect(X + 4, base - h + 3, 3, 2); ctx.fillRect(X + 3, base - h + 5, 1, 3);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(X + 5, base - h + 9, 2, 2); ctx.fillRect(X + w - 6, base - 8, 2, 2);
+  ctx.fillStyle = shadeHex(body, 1.35); ctx.fillRect(X + 5, base - h + 9, 2, 2); ctx.fillRect(X + w - 6, base - 8, 2, 2);
   // eye stalks
   const f = dir > 0;
   for (const [sx, sh] of [[X + 5, 6], [X + w - 7, 8]]) {
@@ -449,7 +454,7 @@ export function drawGlorp(ctx, x, y, L, frame = 0, dir = 1, extra = {}, t = 0) {
     ctx.fillStyle = '#0d0b14'; ctx.fillRect(sx + (f ? 2 : 0), base - h - sh - 2, 1, 1);
   }
   // mouth
-  ctx.fillStyle = O; ctx.fillRect(X + Math.round(w / 2) - 3 + (f ? 2 : -2), base - 9, 6, 1); ctx.fillRect(X + Math.round(w / 2) - 4 + (f ? 2 : -2), base - 10, 1, 1); ctx.fillRect(X + Math.round(w / 2) + 3 + (f ? 2 : -2), base - 10, 1, 1);
+  ctx.fillStyle = EYE; ctx.fillRect(X + Math.round(w / 2) - 3 + (f ? 2 : -2), base - 9, 6, 1); ctx.fillRect(X + Math.round(w / 2) - 4 + (f ? 2 : -2), base - 10, 1, 1); ctx.fillRect(X + Math.round(w / 2) + 3 + (f ? 2 : -2), base - 10, 1, 1);
   if (extra.carry != null) drawItem(ctx, extra.carry, Math.round(x) - 7, base - h - 28);
 }
 
@@ -460,9 +465,9 @@ export function drawZix(ctx, x, y, L, frame = 0, dir = 1, extra = {}, t = 0) {
   const f = dir > 0, sh = L.shell || '#7d4fc9', sd = shadeHex(sh, 0.7), acc = L.accent || '#4fe0d0';
   const flap = Math.floor(t / 90) % 2;
   // wings
-  ctx.fillStyle = 'rgba(180,230,255,0.45)';
-  ctx.fillRect(X + (f ? -3 : 9), Y + 9 - flap, 8, 12 + flap);
-  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(X + (f ? -2 : 10), Y + 10 - flap, 1, 9);
+  ctx.fillStyle = '#7fb4d8'; ctx.fillRect(X + (f ? -3 : 9), Y + 9 - flap, 8, 12 + flap);
+  ctx.fillStyle = '#b8e4ff'; ctx.fillRect(X + (f ? -2 : 10), Y + 10 - flap, 6, 10 + flap);
+  ctx.fillStyle = '#e8f8ff'; ctx.fillRect(X + (f ? -2 : 10), Y + 10 - flap, 1, 9);
   // legs
   const lx = frame === 1 ? 3 : frame === 2 ? 5 : 4, rx = frame === 1 ? 9 : frame === 2 ? 7 : 8;
   for (const lg of [lx, rx]) { r(lg - 1, 25, 3, 5, O); r(lg, 25, 1, 4, sd); r(lg + (f ? 0 : -1), 29, 3, 5, O); r(lg + (f ? 1 : 0), 30, 1, 3, sd); r(lg - 1 + (f ? 1 : 0), 33, 3, 1, O); }
@@ -500,6 +505,78 @@ export function drawBot(ctx, x, y, L, dir = 1, t = 0, extra = {}) {
   r(6, 0, 2, 2, O); r(6, -2, 2, 2, L.light || '#4fe0d0');
   if (extra.monocle) { r(f ? 10 : 2, 4, 2, 4, '#ffb347'); }
   if (extra.badge) { r(f ? 9 : 3, 14, 2, 2, '#ffb347'); }
+}
+
+/* ------------------------------------------------- outline-free characters --- */
+// Characters are drawn once per pose into a small offscreen canvas, then every black
+// outline pixel is replaced with a darker tone of the body part it borders. The result
+// is cached, so each pose is processed only once.
+
+const CHAR_W = 32, CHAR_H = 56, CX = 16, CY = 50;
+const charCache = new Map();
+const OUT = [0x21, 0x1a, 0x2b];
+
+function softenOutlines(c) {
+  const g = c.getContext('2d');
+  const img = g.getImageData(0, 0, CHAR_W, CHAR_H), d = img.data;
+  const isOut = i => d[i + 3] === 255 && d[i] === OUT[0] && d[i + 1] === OUT[1] && d[i + 2] === OUT[2];
+  for (let pass = 0; pass < 3; pass++) {
+    const todo = [];
+    for (let y = 0; y < CHAR_H; y++) for (let x = 0; x < CHAR_W; x++) {
+      const i = (y * CHAR_W + x) * 4;
+      if (!isOut(i)) continue;
+      // prefer the neighbour below/inside, then sides, then diagonals
+      let src = -1;
+      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= CHAR_W || ny >= CHAR_H) continue;
+        const j = (ny * CHAR_W + nx) * 4;
+        if (d[j + 3] === 255 && !isOut(j)) { src = j; break; }
+      }
+      if (src >= 0) todo.push([i, d[src] * 0.66 | 0, d[src + 1] * 0.62 | 0, d[src + 2] * 0.7 | 0]);
+    }
+    if (!todo.length) break;
+    for (const [i, r, gg, b] of todo) { d[i] = r; d[i + 1] = gg; d[i + 2] = b; }
+  }
+  for (let i = 0; i < d.length; i += 4) if (isOut(i)) d[i + 3] = 0;
+  g.putImageData(img, 0, 0);
+}
+
+const DRAW = {
+  person: (x, L, f, dir, ex) => drawPerson(x, CX, CY, L, f, dir, ex),
+  astro: (x, L, f, dir, ex) => drawAstronaut(x, CX, CY, L, f, dir, ex),
+  grey: (x, L, f, dir, ex) => drawGrey(x, CX, CY, L, f, dir, ex),
+  glorp: (x, L, f, dir, ex, t) => drawGlorp(x, CX, CY, L, f, dir, ex, t),
+  zix: (x, L, f, dir, ex, t) => drawZix(x, CX, CY, L, f, dir, ex, t),
+  bot: (x, L, f, dir, ex, t) => drawBot(x, CX, CY, L, dir, t, ex),
+};
+
+/** Animated state that changes the drawing, reduced to a small cache key. */
+function animKey(kind, L, frame, t) {
+  if (kind === 'glorp') return Math.round(Math.sin(t / 160 + (L.seed || 0)) * (frame ? 1.5 : 0.8));
+  if (kind === 'zix') return Math.floor(t / 90) % 2;
+  if (kind === 'bot') return (Math.floor(t / 120) % 6) + ':' + (Math.floor(t / 300) % 4);
+  return 0;
+}
+
+/** Draw any character (no black outline) with feet at (x, y). */
+export function drawChar(ctx, kind, x, y, L, frame = 0, dir = 1, extra = {}, t = 0) {
+  const { carry, ...ex } = extra;
+  const a = animKey(kind, L, frame, t);
+  const key = kind + '|' + JSON.stringify(L) + '|' + frame + '|' + dir + '|' + JSON.stringify(ex) + '|' + a;
+  let c = charCache.get(key);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = CHAR_W; c.height = CHAR_H;
+    // freeze time to the cached animation state
+    const tt = kind === 'glorp' || kind === 'zix' || kind === 'bot' ? t : 0;
+    DRAW[kind](c.getContext('2d'), L, frame, dir, ex, tt);
+    softenOutlines(c);
+    if (charCache.size > 600) charCache.clear();
+    charCache.set(key, c);
+  }
+  ctx.drawImage(c, Math.round(x) - CX, Math.round(y) - CY);
+  if (carry != null) drawItem(ctx, carry, Math.round(x) - 7, Math.round(y) - 54);
 }
 
 export { drawItem, ITEMS };
