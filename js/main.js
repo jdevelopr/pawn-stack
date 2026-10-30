@@ -409,7 +409,7 @@ function onFx(e) {
     case 'toast': toast(e.text, e.kind); if (e.kind === 'err') sfx('err'); break;
     case 'buy':
       if (me) { sfx('buy'); burst(CUSTOMER_X + 30, 140, '-' + money(e.price), '#f2c14e'); }
-      else { const p = playerById(e.pid); toast(`${p?.name || 'A rival'} bought it for ${money(e.price)}.`, 'bad'); sfx('lose'); }
+      else { const p = playerById(e.pid); toast(`${p?.name || 'A rival'} closed the deal for ${money(e.price)}.`, 'bad'); sfx('lose'); }
       break;
     case 'sell':
       if (me) { sfx('sell'); burst(CUSTOMER_X + 30, 140, '+' + money(e.price), '#7bc96f', 14); bumpCash(); }
@@ -560,7 +560,7 @@ function render(t) {
   // bubbles
   ctx.save(); ctx.translate(-c, 0);
   if (npc && atCounter && cust && !cust.done) {
-    const msg = cust.st.msg || (v.phase === 'buy' ? say(cust.prof, 'ask', { p: cust.ask }, seedOf(cust.id)) : say(cust.prof, 'want', { c: cust.cat === 'any' ? 'good stuff' : cust.cat }, seedOf(cust.id)));
+    const msg = cust.st.msg || (v.phase === 'buy' ? say(cust.prof, cust.loan ? 'loanAsk' : 'ask', { p: cust.ask }, seedOf(cust.id)) : say(cust.prof, 'want', { c: cust.cat === 'any' ? 'good stuff' : cust.cat }, seedOf(cust.id)));
     bubble(ctx, npc.x, FLOOR - 40, msg);
   }
   for (const n of npcs) if (n.leaving && n.say && n.x > 120) bubble(ctx, n.x, FLOOR - 40, n.say);
@@ -628,7 +628,17 @@ function drawCustomer(n, t) {
 function whoHtml(c) {
   const P = PROFILES[c.prof];
   if (!P) return '';
-  return `<div class="who"><span class="who-name">${esc(P.name)}</span><span class="who-tell">${esc(P.tell)}</span></div>`;
+  const tag = c.hard ? ' <span class="tag-hard">DESPERATE</span>' : c.loan ? ' <span class="tag-loan">PAWN LOAN</span>' : '';
+  const tell = c.hard ? 'Down on their luck and needs credits fast. Prices are low.' : P.tell;
+  return `<div class="who"><span class="who-name">${esc(P.name)}${tag}</span><span class="who-tell">${esc(tell)}</span></div>`;
+}
+
+/* price memory: last market sale, what you paid, what the wholesaler gave */
+function memHtml(m) {
+  if (!m) return '';
+  const part = (lbl, r) => r ? `${lbl} ${money(r.price)} <span class="mem-dim">(${COND[r.cond].n}, sol ${r.day})</span>` : '';
+  const bits = [part('Last sold', m.sale), part('You paid', m.paid), part('Wholesale', m.dump)].filter(Boolean);
+  return bits.length ? `<div class="mem">${bits.join('<br>')}</div>` : '';
 }
 const EVENT_FLAVOR = {
   hot: ['A cruise liner just docked. {c} are in demand.', 'Collectors are in town. {c} are hot this sol.', 'The colony newsfeed is hyping {c}.'],
@@ -818,8 +828,8 @@ function strikesHtml(n, max = 3) {
 function buyHtml(v, c) {
   const it = ITEMS[c.itemId];
   const e = c.est;
-  const full = v.me.inv.length >= v.me.cap;
-  const def = offerVal[c.id] ?? String(Math.max(1, Math.round(Math.min(c.ask * 0.6, (e.lo + e.hi) / 2 * 0.55))));
+  const full = !c.loan && v.me.inv.length >= v.me.cap;
+  const def = offerVal[c.id] ?? String(Math.max(1, Math.round(c.loan ? c.ask * 0.7 : Math.min(c.ask * 0.6, (e.lo + e.hi) / 2 * 0.55))));
   offerVal[c.id] = def;
   const lim = c.lim;
   return `
@@ -829,8 +839,10 @@ function buyHtml(v, c) {
       <div class="meta">${it.cat} &middot; ${COND[c.cond].n} &middot; ${tierTag(e.tier)}</div></div></div>
     <div class="kv"><span>Appraisal</span><b>${estTxt(e)}</b></div>
     ${e.fake ? '<div class="fake">APPRAISER: LIKELY A FAKE</div>' : ''}
+    ${memHtml(c.mem)}
     <div class="hint" data-p="hint">${esc(c.hint || '')}</div>
-    <div class="kv"><span>Asking</span><span class="big-ask" data-p="ask">${money(c.ask)}</span></div>
+    <div class="kv"><span>${c.loan ? 'Wants to borrow' : 'Asking'}</span><span class="big-ask" data-p="ask">${money(c.ask)}</span></div>
+    ${c.loan ? `<div class="loan-terms" data-p="terms">Repays ${money(Math.round(c.ask * (1 + c.loan.rate)))} (${Math.round(c.loan.rate * 100)}% interest) in ${c.loan.days} sols, or you keep the item.</div>` : ''}
     <div class="timer"><i></i></div>
     <div class="excl"></div>
     <div class="say" data-p="say">${esc(c.st.msg || '')}</div>
@@ -844,8 +856,8 @@ function buyHtml(v, c) {
       <button class="btn" data-pct="0.5">50%</button><button class="btn" data-pct="0.7">70%</button><button class="btn" data-pct="0.85">85%</button>
     </div>
     <div class="row">
-      <button class="btn primary" id="offer-btn" data-p="offer" ${c.st.out || full ? 'disabled' : ''}>Offer</button>
-      <button class="btn good" id="take-btn" data-p="take" ${c.st.out || full || c.ask > v.me.cash ? 'disabled' : ''}>Pay ${money(c.ask)}</button>
+      <button class="btn primary" id="offer-btn" data-p="offer" ${c.st.out || full ? 'disabled' : ''}>${c.loan ? 'Offer loan' : 'Offer'}</button>
+      <button class="btn good" id="take-btn" data-p="take" ${c.st.out || full || c.ask > v.me.cash ? 'disabled' : ''}>${c.loan ? 'Lend' : 'Pay'} ${money(c.ask)}</button>
       <button class="btn bad" id="pass-btn" data-p="pass" ${c.st.out ? 'disabled' : ''}>Pass</button>
     </div>
     <div class="hint" style="color:var(--red)" data-p="full">${full ? 'Storage full.' : ''}</div>
@@ -872,7 +884,7 @@ function sellHtml(v, c) {
     ${el.length ? `<div class="pick-list">${el.map(i => `
       <button class="pick ${i.uid === pickUid[c.id] ? 'on' : ''}" data-uid="${i.uid}">
         <img class="icon sm" src="${itemIcon(i.id, 3)}" alt="">
-        <span><span class="nm">${esc(ITEMS[i.id].n)}</span><br>${COND[i.cond].n} &middot; paid ${money(i.paid)} &middot; est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</span>
+        <span><span class="nm">${esc(ITEMS[i.id].n)}</span><br>${COND[i.cond].n} &middot; paid ${money(i.paid)} &middot; est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}${i.mem?.sale ? `<br><span class="mem-dim">Last sold ${money(i.mem.sale.price)} (${COND[i.mem.sale.cond].n})</span>` : ''}</span>
       </button>`).join('')}</div>
       <div class="offer-row">
         <button class="btn small" data-step="-1">-</button>
@@ -919,7 +931,8 @@ let invKey = '';
 function renderInv(force) {
   const v = app.view, el = $('#invp');
   const inv = v.me.inv;
-  const key = JSON.stringify([inv, v.me.cap, v.phase]);
+  const loans = v.me.loans || [];
+  const key = JSON.stringify([inv, loans, v.me.cap, v.phase]);
   if (key === invKey && !force) return;
   invKey = key;
   el.innerHTML = `${closeBtn}<h2>Inventory ${inv.length}/${v.me.cap}</h2>
@@ -929,9 +942,17 @@ function renderInv(force) {
         <div><div class="nm">${esc(ITEMS[i.id].n)}</div>
         <div class="meta">${COND[i.cond].n} &middot; ${tierTag(i.est.tier)}</div>
         <div class="meta">Paid ${money(i.paid)} &middot; est ${estTxt(i.est)}</div>
-        ${i.est.fake ? '<div class="fake">LIKELY FAKE</div>' : ''}</div>
+        ${i.est.fake ? '<div class="fake">LIKELY FAKE</div>' : ''}${memHtml(i.mem)}</div>
         <button class="btn" data-dump="${i.uid}">Dump to wholesaler</button>
-      </div>`).join('')}</div>` : '<div class="empty">Nothing on the shelves.</div>'}`;
+      </div>`).join('')}</div>` : '<div class="empty">Nothing on the shelves.</div>'}
+    ${loans.length ? `<h3>VAULT: PAWN LOANS</h3><div class="inv-grid">${loans.map(l => `
+      <div class="inv-card">
+        <img class="icon sm" src="${itemIcon(l.itemId, 3)}" alt="">
+        <div><div class="nm">${esc(ITEMS[l.itemId].n)}</div>
+        <div class="meta">Lent ${money(l.amount)} &middot; repays ${money(l.back)}</div>
+        <div class="meta">Due end of sol ${l.due} &middot; est ${estTxt(l.est)}</div>
+        ${l.est.fake ? '<div class="fake">LIKELY FAKE</div>' : ''}</div>
+      </div>`).join('')}</div>` : ''}`;
   el.querySelector('[data-close]').addEventListener('click', closePanel);
   el.querySelectorAll('[data-dump]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.confirm) { act({ type: 'dump', uid: b.dataset.dump }); }
@@ -956,12 +977,19 @@ function renderUpg(force) {
       return `<div class="upg">
         <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">STAFF ${money(u.wage)}/SOL PER LVL</span>` : ''}</div>
         <div class="ds">${esc(u.desc)}</div>
-        <button class="btn ${lvl < max ? 'primary' : ''}" data-up="${u.id}" ${!eve || lvl >= max || cost > v.me.cash ? 'disabled' : ''}>${lvl >= max ? 'MAX' : money(cost)}</button>
+        <div class="upg-btns">
+          <button class="btn ${lvl < max ? 'primary' : ''}" data-up="${u.id}" ${!eve || lvl >= max || cost > v.me.cash ? 'disabled' : ''}>${lvl >= max ? 'MAX' : money(cost)}</button>
+          ${lvl > 0 ? `<button class="btn small" data-down="${u.id}" ${eve ? '' : 'disabled'} title="${u.staff ? 'Saves ' + money(u.wage) + ' per sol' : 'Refunds ' + money(Math.round(u.cost[lvl - 1] * 0.3))}">${u.staff ? 'Let go' : 'Sell back'}</button>` : ''}
+        </div>
       </div>`;
     }).join('')}</div>`;
   flashUpgrade = null;
   el.querySelector('[data-close]').addEventListener('click', closePanel);
   el.querySelectorAll('[data-up]').forEach(b => b.addEventListener('click', () => act({ type: 'upgrade', id: b.dataset.up })));
+  el.querySelectorAll('[data-down]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.confirm) act({ type: 'downgrade', id: b.dataset.down });
+    else { b.dataset.confirm = '1'; b.textContent = 'Confirm'; b.classList.add('bad'); }
+  }));
 }
 
 /* evening summary */
@@ -983,9 +1011,11 @@ function renderEvening() {
     <div class="sum-grid">
       <div class="col"><h3>BOUGHT</h3>${s.bought.length ? s.bought.map(b => line(esc(ITEMS[b.id].n), money(b.price))).join('') : '<div class="meta">Nothing</div>'}</div>
       <div class="col"><h3>SOLD</h3>${s.sold.length ? s.sold.map(b => line(esc(ITEMS[b.id].n), `${money(b.price)} (${b.price - b.paid >= 0 ? '+' : ''}${money(b.price - b.paid)})`, b.price >= b.paid ? 'p' : 'n')).join('') : '<div class="meta">Nothing</div>'}
-      ${s.dumped.length ? '<h3>DUMPED</h3>' + s.dumped.map(b => line(esc(ITEMS[b.id].n), money(b.price), b.price >= b.paid ? 'p' : 'n')).join('') : ''}</div>
+      ${s.dumped.length ? '<h3>DUMPED</h3>' + s.dumped.map(b => line(esc(ITEMS[b.id].n), money(b.price), b.price >= b.paid ? 'p' : 'n')).join('') : ''}
+      ${s.lent?.length ? '<h3>LOANED OUT</h3>' + s.lent.map(b => line(esc(ITEMS[b.id].n), `${money(b.amount)} (repays ${money(b.back)})`)).join('') : ''}</div>
     </div>
     <h3>OVERNIGHT</h3>
+    ${(s.loans || []).map(l => l.kind === 'repaid' ? line(`Loan repaid: ${esc(ITEMS[l.id].n)}`, `+${money(l.back)}`, 'p') : line(`Loan forfeited: ${esc(ITEMS[l.id].n)} is yours`, `cost ${money(l.amount)}`)).join('')}
     ${line('Rent', '-' + money(s.rent), 'n')}
     ${s.wages ? line('Staff wages', '-' + money(s.wages), 'n') : ''}
     ${s.restored.map(r => line(`Restored ${esc(ITEMS[r.id].n)}`, `now ${COND[r.cond].n}`, 'p')).join('')}
@@ -1015,7 +1045,7 @@ function showResults() {
     return `<li style="--i:${i}"><span class="rk">#${i + 1}</span>
       <span class="nm" style="color:${p.color}">${esc(p.name)}${p.bankrupt ? ' (bankrupt)' : ''}</span>
       <span class="wv">${money(p.worth)}</span>
-      <span class="dt">Cash ${money(p.cash)} + ${p.items} items worth ${money(p.invVal)} &middot; ${p.stats.bought} bought, ${p.stats.sold} sold${bf ? ` &middot; best flip: ${esc(ITEMS[bf.id].n)} ${bf.profit >= 0 ? '+' : ''}${money(bf.profit)}` : ''}</span></li>`;
+      <span class="dt">Cash ${money(p.cash)} + ${p.items} items and loans worth ${money(p.invVal)} &middot; ${p.stats.bought} bought, ${p.stats.sold} sold${bf ? ` &middot; best flip: ${esc(ITEMS[bf.id].n)} ${bf.profit >= 0 ? '+' : ''}${money(bf.profit)}` : ''}</span></li>`;
   }).join('');
   sfx('day');
 }

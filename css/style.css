@@ -210,7 +210,7 @@ input[type=number] { -moz-appearance: textfield; }
 .upg { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; background: var(--panel-d); padding: 8px 10px; box-shadow: inset 3px 3px 0 #120d1a; }
 .upg .nm { font-family: var(--head); font-size: 10px; color: var(--cream); display: flex; gap: 10px; align-items: center; }
 .upg .ds { font-size: 18px; color: var(--dim); grid-column: 1; }
-.upg .btn { grid-row: 1 / 3; grid-column: 2; font-size: 9px; min-width: 120px; }
+.upg .btn { font-size: 9px; }
 .pips { display: inline-flex; gap: 3px; }
 .pips i { width: 8px; height: 8px; background: #120d1a; }
 .pips i.on { background: var(--gold); }
@@ -265,3 +265,10 @@ input[type=number] { -moz-appearance: textfield; }
 .who-name { font-family: var(--head); font-size: 10px; color: var(--blue); letter-spacing: 1px; }
 .who-tell { font-size: 18px; color: var(--dim); line-height: 1.05; }
 .say { background: #e8eef8; color: #141a2b; }
+
+.tag-hard { color: var(--red); } .tag-loan { color: var(--gold); }
+.loan-terms { font-size: 19px; color: var(--gold); margin-top: 4px; line-height: 1.05; }
+.mem { font-size: 18px; color: #b4e3ff; margin-top: 6px; line-height: 1.05; }
+.mem-dim { color: var(--dim); }
+.upg-btns { grid-row: 1 / 3; grid-column: 2; display: grid; gap: 6px; }
+.upg-btns .btn { min-width: 120px; }

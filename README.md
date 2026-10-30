@@ -25,6 +25,23 @@ Each day has three parts:
 You can dump any item to the wholesaler at any time for a fraction of its real
 value, which is how you cut losses on a bad buy.
 
+### Staying afloat
+
+- **Pawn loans.** Some morning customers ask to borrow credits against an item
+  instead of selling it (haggle the loan amount like a price). They return in 2-3
+  sols and repay with 20-30% interest, or forfeit the item to you at the loan
+  price. Repayment odds depend on the customer type (smugglers and Glorps flake;
+  collectors and Greys almost always pay). Fake collateral is never redeemed.
+  Collateral sits in the vault, not your storage.
+- **Hard-times sellers.** If you end a day under 200 CR, the next morning brings two
+  extra desperate sellers to your shop first, with genuine, sellable goods at low
+  prices.
+- **Let staff go / sell back upgrades.** In the evening you can drop a staff level
+  (wages stop immediately) or sell back a non-staff upgrade for 30% of its cost.
+- **Price memory.** Your shop remembers the last market sale price of each item
+  (shared with everyone in multiplayer), what you paid, and what the wholesaler
+  gave. It shows up in the deal panel and inventory.
+
 ### Items
 
 250 unique items, 25 in each of 10 categories: Earth Relics (antiques from

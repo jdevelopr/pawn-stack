@@ -15,11 +15,14 @@
  *   buy.bonus    per-category multipliers on top of mult
  *   buy.detect   chance they spot a fake you try to sell them (default 55%)
  *   buy.junk     multiplier applied to Junk-tier items
+ *   loan         chance a customer asks for a pawn loan instead of selling
+ *   repay        chance they come back and repay a loan (otherwise you keep the item)
  *   voice        speech lines; {p} is a price, {c} a category
  */
 
 export const PROFILES = {
   colonist: {
+    loan: 0.25, repay: 0.8,
     name: 'Colonist', kind: 'human', sw: 18, bw: 16,
     tell: 'A regular dome-dweller. No surprises.',
     sell: { floor: [0.32, 1.05], ask: [1.35, 1.9] },
@@ -27,11 +30,13 @@ export const PROFILES = {
     voice: {},
   },
   miner: {
+    loan: 0.3, repay: 0.85,
     name: 'Dome Miner', kind: 'miner', sw: 12, bw: 10, cats: ['Tools', 'Minerals'],
     tell: 'On a short shift break. Sells cheap and fast, but has little patience.',
     sell: { floor: [0.25, 0.7], ask: [1.3, 1.6], time: 0.6 },
     buy: { mult: [0.9, 1.25], time: 0.6 },
     voice: {
+      loanAsk: ['Need {p} till payday. Hold this.'],
       ask: ['{p}. Make it quick.', '{p}, my shift starts soon.'],
       counter: ['{p}. Clock is ticking.', 'Fine, {p}. Hurry up.'],
       insult: ["I've met rocks smarter than that offer.", 'Not a chance.'],
@@ -41,6 +46,7 @@ export const PROFILES = {
     },
   },
   tourist: {
+    loan: 0.05, repay: 0.9,
     name: 'Earth Tourist', kind: 'tourist', sw: 3, bw: 10, cats: ['Xeno Artifacts', 'Art', 'Minerals'],
     tell: 'Fresh off the shuttle from Earth. Overpays and rarely spots a fake.',
     sell: { floor: [0.5, 1.2], ask: [1.3, 1.8] },
@@ -55,6 +61,7 @@ export const PROFILES = {
     },
   },
   collector: {
+    loan: 0.1, repay: 0.95,
     name: 'Relic Collector', kind: 'collector', sw: 7, bw: 7, cats: ['Earth Relics', 'Music', 'Art'],
     tell: 'Knows exactly what old Earth things are worth. Pays extra for Earth Relics and spots fakes.',
     sell: { floor: [0.8, 1.05], ask: [1.15, 1.4], strikes: -1 },
@@ -69,11 +76,13 @@ export const PROFILES = {
     },
   },
   smuggler: {
+    loan: 0.25, repay: 0.45,
     name: 'Smuggler', kind: 'smuggler', sw: 7, bw: 5,
     tell: 'Suspiciously cheap. Brings lots of fakes. Buys anything, never checks, pays little.',
     sell: { floor: [0.15, 0.45], ask: [1.4, 2.0], fake: 0.4, time: 0.8 },
     buy: { mult: [0.6, 0.9], detect: 0 },
     voice: {
+      loanAsk: ['{p}. Hold this for me. No questions.'],
       ask: ['{p}. No questions.'],
       counter: ['{p}. Final. Keep it down.'],
       insult: ['Keep your voice down.'],
@@ -83,11 +92,13 @@ export const PROFILES = {
     },
   },
   spacer: {
+    loan: 0.2, repay: 0.75,
     name: 'Freighter Spacer', kind: 'astro', sw: 9, bw: 11, cats: ['Ship Parts', 'Gear', 'Tech'],
     tell: 'Nine months of back pay to burn. Free-spending buyer.',
     sell: { floor: [0.35, 0.9], ask: [1.3, 1.8] },
     buy: { mult: [1.1, 1.5] },
     voice: {
+      loanAsk: ['Spot me {p} till my ship pays out?'],
       ask: ['{p}, spacer price.'],
       counter: ['{p} and I buy you a drink.'],
       want: ['Any good {c}? Credits to burn!'],
@@ -96,6 +107,7 @@ export const PROFILES = {
     },
   },
   prospector: {
+    loan: 0.15, repay: 0.85,
     name: 'Belt Prospector', kind: 'prospector', sw: 8, bw: 6, cats: ['Minerals', 'Tools', 'Ship Parts'],
     tell: 'Hauls rare finds in from the asteroid belt. Better goods, harder bargains. Pays extra for Tools.',
     sell: { floor: [0.6, 1.0], ask: [1.25, 1.6], tier: 2 },
@@ -108,11 +120,13 @@ export const PROFILES = {
     },
   },
   grey: {
+    loan: 0.15, repay: 0.9,
     name: 'Grey Broker', kind: 'grey', sw: 7, bw: 7, cats: ['Xeno Artifacts', 'Tech'],
     tell: 'A shrewd alien trader. Lowballs offend it, but it drops its ask quickly. Spots fakes.',
     sell: { floor: [0.6, 0.95], ask: [1.2, 1.5], strikes: -1, give: 0.12 },
     buy: { mult: [0.95, 1.25], detect: 0.85 },
     voice: {
+      loanAsk: ['Requesting short-term credit: {p}. Collateral attached.'],
       ask: ['Proposed value: {p}.'],
       counter: ['Counter-proposal: {p}.', 'Acceptable range begins at {p}.'],
       insult: ['Your species amuses me.', 'Offer noted. Negatively.'],
@@ -125,11 +139,13 @@ export const PROFILES = {
     },
   },
   glorp: {
+    loan: 0.25, repay: 0.6,
     name: 'Glorp', kind: 'glorp', sw: 7, bw: 7,
     tell: 'A friendly blob with no idea what anything is worth. Prices are a total gamble.',
     sell: { floor: [0.05, 1.6], ask: [1.1, 3.0], strikes: 2 },
     buy: { mult: [0.4, 2.2], detect: 0.1, strikes: 2 },
     voice: {
+      loanAsk: ['Glorp borrow {p}? Glorp come back. Probably.'],
       ask: ['Blorp! {p}?', 'Glorp want {p} shinies.'],
       counter: ['Blorp... {p}?', '{p}! Glorp is happy-ish.'],
       insult: ['Glorp is sad now.', 'Blorp! Mean!'],
@@ -142,6 +158,7 @@ export const PROFILES = {
     },
   },
   zix: {
+    loan: 0.15, repay: 0.8,
     name: 'Zix Swarmling', kind: 'zix', sw: 6, bw: 7, cats: ['Minerals', 'Gear', 'Earth Relics'],
     tell: 'Loves shiny things and pays extra for Minerals. Hates junk. Brings good stuff.',
     sell: { floor: [0.4, 0.95], ask: [1.3, 1.8], tier: 1 },
@@ -161,6 +178,9 @@ export const PROFILES = {
 };
 
 const DEFAULT_VOICE = {
+  loanAsk: ['Can I borrow {p}? This is my collateral.', 'Need a loan of {p}. I will be back for it.'],
+  loanCounter: ['I need at least {p}.', 'Make it {p}. I will pay it back.'],
+  loanDeal: ['Thanks. Keep it safe, I will be back.'],
   ask: ['{p}?', 'Thinking {p}.'],
   want: ['Got any {c}?', 'Looking for {c}.'],
   counter: ['How about {p}?', 'I could do {p}.', 'Meet me at {p}.'],

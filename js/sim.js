@@ -40,6 +40,7 @@ const APPR_W = [0.9, 0.62, 0.42, 0.28, 0.16, 0.07];
 const APPR_DET = [0, 0, 0.45, 0.7, 0.9, 1];
 export const START_CASH = 750;
 const SELLER_MS = 16000, BUYER_MS = 15000, WALK_MS = 1600, GAP_MS = 1100, EXCL_MS = 4000;
+const HARD_TIMES_CASH = 200, DOWNGRADE_REFUND = 0.3;
 const DAWN_MS = 4200, NOON_MS = 3200, EVENING_MP_MS = 90000;
 export const PLAYER_COLORS = ['#e8554e', '#3fa7d6', '#f4c542', '#7bc96f'];
 
@@ -79,7 +80,11 @@ export class Sim {
     };
     this.dirty = true;
   }
-  static load(json) { const sim = new Sim(json.cfg); sim.s = json; return sim; }
+  static load(json) {
+    const sim = new Sim(json.cfg); sim.s = json;
+    for (const p of Object.values(json.players)) { p.loans ||= []; p.memory ||= {}; }   // older saves
+    return sim;
+  }
   serialize() { return JSON.parse(JSON.stringify(this.s)); }
 
   get solo() { return this.s.order.length === 1; }
@@ -92,7 +97,8 @@ export class Sim {
       pid, name: (name || 'Player').slice(0, 14), color: PLAYER_COLORS[S.order.length % 4],
       cash: START_CASH, inv: [], connected: true, ready: false, bankrupt: false,
       up: Object.fromEntries(UPGRADES.map(u => [u.id, 0])),
-      stats: { bought: 0, sold: 0, spent: 0, earned: 0, bestFlip: null },
+      stats: { bought: 0, sold: 0, spent: 0, earned: 0, bestFlip: null, interest: 0 },
+      loans: [], memory: {},
       today: null, summary: null,
     };
     S.players[pid] = p; S.order.push(pid); this.dirty = true;
@@ -120,7 +126,7 @@ export class Sim {
     if (S.cfg.maxDays && S.day > S.cfg.maxDays) return this.finish();
     for (const p of Object.values(S.players)) {
       p.ready = false; p.summary = null;
-      p.today = { bought: [], sold: [], dumped: [], startCash: p.cash };
+      p.today = { bought: [], sold: [], dumped: [], lent: [], startCash: p.cash };
     }
     S.event = Math.random() < 0.6
       ? { cat: pick(CATS), mod: Math.random() < 0.65 ? 1.35 : 0.75 }
@@ -142,8 +148,14 @@ export class Sim {
       const n = Math.round(2 + p.up.ads * 1.3);
       for (let i = 0; i < n; i++) slots.push(p.pid);
     }
+    // Hard times: a struggling shop attracts desperate sellers with cheap, sellable goods.
+    for (const p of live) {
+      if (p.cash < HARD_TIMES_CASH) for (let i = 0; i < 2; i++) slots.push({ hard: p.pid });
+    }
     slots.sort(() => Math.random() - 0.5);
-    return slots.map(forPid => {
+    return slots.map(slot => {
+      if (slot && slot.hard) return this.makeHardSeller(slot.hard);
+      const forPid = slot;
       const prof = pickProfile('sell'), P0 = PROFILES[prof], ps = P0.sell;
       const L = (forPid ? this.s.players[forPid].up.ads : 0) + (ps.tier || 0);
       const tier = wpick([Math.max(4, 40 - 7 * L), 35, 17 + 2.5 * L, 6 + 1.8 * L, 1.2 + 0.8 * L]);
@@ -158,11 +170,28 @@ export class Sim {
         fake: tier >= 2 && Math.random() < (ps.fake ?? 0.13),
       };
       const P = genuineValue(inst);
+      const base = { id: 's' + this.s.uid++, prof, inst, for: forPid, look: Math.floor(Math.random() * 1e9), per: {}, feed: [] };
+      // Pawn loan: they want credits now and plan to come back for the item.
+      if (tier >= 1 && Math.random() < (P0.loan ?? 0.2)) {
+        const F = Math.max(2, Math.round(P * rand(0.15, 0.3)));       // least they'll accept
+        const ask = Math.max(F + 1, nice(P * rand(0.35, 0.6)));       // what they ask to borrow
+        return { ...base, F, ask, startAsk: ask, loan: { rate: pick([0.2, 0.25, 0.3]), days: pick([2, 3]) } };
+      }
       // Sellers of fakes know what they have; everyone else guesses (some guess wildly).
       const F = Math.max(1, Math.round(P * (inst.fake ? rand(0.2, 0.55) : rand(...ps.floor))));
       const ask = Math.max(F + 1, nice(F * rand(...ps.ask)));
-      return { id: 's' + this.s.uid++, prof, inst, F, ask, startAsk: ask, for: forPid, look: Math.floor(Math.random() * 1e9), per: {}, feed: [] };
+      return { ...base, F, ask, startAsk: ask };
     });
+  }
+
+  makeHardSeller(pid) {
+    const prof = pickProfile('sell');
+    const tier = wpick([0, 60, 35, 5, 0]);
+    const inst = { uid: 'i' + this.s.uid++, id: pick(BY_TIER[tier]), cond: wpick([5, 35, 45, 15]), vm: +rand(0.9, 1.1).toFixed(3), fake: false };
+    const P = genuineValue(inst);
+    const F = Math.max(1, Math.round(P * rand(0.15, 0.35)));
+    const ask = Math.max(F + 1, nice(F * rand(1.2, 1.5)));
+    return { id: 's' + this.s.uid++, prof, inst, F, ask, startAsk: ask, for: pid, hard: true, look: Math.floor(Math.random() * 1e9), per: {}, feed: [] };
   }
 
   genBuyerSlots() {
@@ -277,7 +306,7 @@ export class Sim {
         const amt = a.type === 'take' ? c.ask : Math.floor(+a.amt);
         if (!(amt > 0)) return err('Enter an offer.');
         if (amt > p.cash) return err('Not enough cash.');
-        if (p.inv.length >= capOf(p)) return err('Storage is full. Dump something or upgrade.');
+        if (!c.loan && p.inv.length >= capOf(p)) return err('Storage is full. Dump something or upgrade.');
         const st = this.per(c, pid);
         if (amt >= c.ask) return this.buy(p, c, c.ask, now);
         if (amt >= c.F) {
@@ -286,9 +315,9 @@ export class Sim {
           const na = nice(c.ask - (c.ask - amt) * k);
           if (na <= amt * 1.04 || na >= c.ask) return this.buy(p, c, amt, now);
           c.ask = na;
-          st.msg = say(c.prof, 'counter', { p: na });
+          st.msg = say(c.prof, c.loan ? 'loanCounter' : 'counter', { p: na });
           c.until = Math.min(c.until + 2500, c.openAt + SELLER_MS + 8000);
-          if (!this.solo) this.feed(c, `${p.name} haggled the ask to ${cr(na)}`);
+          if (!this.solo) this.feed(c, `${p.name} haggled the ${c.loan ? 'loan' : 'ask'} to ${cr(na)}`);
           this.fx({ type: 'haggle', pid });
         } else {
           st.strikes += amt < c.F * 0.5 ? 2 : 1;
@@ -366,6 +395,7 @@ export class Sim {
         p.inv.splice(idx, 1);
         p.cash += price; p.stats.earned += price;
         p.today?.dumped.push({ id: inst.id, price, paid: inst.paid });
+        this.remember(p, inst.id, 'dump', price, inst.cond);
         this.toast(pid, `Wholesaler paid ${cr(price)} for ${ITEMS[inst.id].n}${inst.fake ? ' (it was a fake)' : ''}.`, price >= inst.paid ? 'good' : 'bad');
         this.fx({ type: 'coins', pid, amt: price });
         this.dirty = true;
@@ -382,6 +412,19 @@ export class Sim {
         this.toast(pid, `${u.name} upgraded to level ${p.up[u.id]}.`, 'good');
         this.fx({ type: 'upgrade', pid, id: u.id });
         if (!this.solo) this.log(`${p.name} bought ${u.name} ${p.up[u.id]}`);
+        this.dirty = true;
+        return;
+      }
+      case 'downgrade': {
+        if (S.phase !== 'evening') return err('Staff and upgrades are changed in the evening.');
+        const u = UP[a.id]; if (!u) return;
+        const lvl = p.up[u.id];
+        if (lvl <= 0) return;
+        if (u.id === 'storage' && p.inv.length > 8 + 4 * (lvl - 1)) return err('Too much stock to shrink storage. Sell or dump items first.');
+        const refund = u.staff ? 0 : nice(u.cost[lvl - 1] * DOWNGRADE_REFUND);
+        p.up[u.id]--; p.cash += refund;
+        this.toast(pid, u.staff ? `Let one ${u.name} go. Wages drop by ${cr(u.wage)} per sol.` : `${u.name} sold back for ${cr(refund)}.`, 'info');
+        this.fx({ type: 'upgrade', pid, id: u.id });
         this.dirty = true;
         return;
       }
@@ -411,8 +454,10 @@ export class Sim {
   }
 
   buy(p, c, price, now) {
+    if (c.loan) return this.lend(p, c, price, now);
     const line = say(c.prof, 'deal');
     p.cash -= price; p.stats.bought++; p.stats.spent += price;
+    this.remember(p, c.inst.id, 'paid', price, c.inst.cond);
     const inst = { ...c.inst, paid: price, day: this.s.day };
     p.inv.push(inst);
     p.today.bought.push({ id: inst.id, price });
@@ -424,7 +469,27 @@ export class Sim {
     this.dirty = true;
   }
 
+  lend(p, c, amount, now) {
+    const line = say(c.prof, 'loanDeal');
+    const back = Math.round(amount * (1 + c.loan.rate));
+    p.cash -= amount;
+    p.loans.push({ id: c.id, inst: { ...c.inst }, amount, back, rate: c.loan.rate, due: this.s.day + c.loan.days, prof: c.prof });
+    p.today.lent.push({ id: c.inst.id, amount, back });
+    this.per(c, p.pid).msg = line;
+    c.done = true; c.outcome = { type: 'lent', pid: p.pid, price: amount, text: line };
+    this.s.nextAt = now + GAP_MS;
+    this.log(`${p.name} lent ${cr(amount)} against ${ITEMS[c.inst.id].n}`);
+    this.fx({ type: 'buy', pid: p.pid, price: amount, itemId: c.inst.id });
+    this.dirty = true;
+  }
+
+  /** Price memory: every player learns market sale prices; your own buys and dumps stay private. */
+  remember(p, itemId, kind, price, cond) {
+    (p.memory[itemId] ||= {})[kind] = { price, cond, day: this.s.day };
+  }
+
   sell(p, b, inst, price, now) {
+    for (const x of Object.values(this.s.players)) this.remember(x, inst.id, 'sale', price, inst.cond);
     p.inv = p.inv.filter(i => i !== inst);
     p.cash += price; p.stats.sold++; p.stats.earned += price;
     const profit = price - inst.paid;
@@ -444,6 +509,19 @@ export class Sim {
     S.phase = 'evening';
     S.phaseEnd = this.solo ? 0 : now + EVENING_MP_MS;
     for (const p of this.live()) {
+      const loans = [];
+      for (const L of p.loans.filter(l => l.due <= S.day)) {
+        const repayP = PROFILES[L.prof]?.repay ?? 0.75;
+        if (!L.inst.fake && Math.random() < repayP) {
+          p.cash += L.back; p.stats.interest += L.back - L.amount;
+          loans.push({ id: L.inst.id, amount: L.amount, back: L.back, kind: 'repaid' });
+        } else {
+          // forfeited: the collateral is yours, at the price of the loan
+          p.inv.push({ ...L.inst, paid: L.amount, day: S.day });
+          loans.push({ id: L.inst.id, amount: L.amount, kind: 'forfeit' });
+        }
+      }
+      p.loans = p.loans.filter(l => l.due > S.day);
       const rent = 20 + 3 * S.day;
       const wages = UPGRADES.filter(u => u.staff).reduce((s, u) => s + p.up[u.id] * u.wage, 0);
       p.cash -= rent + wages;
@@ -466,7 +544,7 @@ export class Sim {
       }
       if (p.cash < 0) { p.bankrupt = true; p.ready = true; }
       p.summary = {
-        ...p.today, rent, wages, stolen, forced, cash: p.cash,
+        ...p.today, rent, wages, stolen, forced, loans, cash: p.cash,
         restored: restored.map(uid => p.inv.find(i => i.uid === uid)).filter(Boolean).map(i => ({ id: i.id, cond: i.cond })),
       };
     }
@@ -480,7 +558,7 @@ export class Sim {
     S.phase = 'over';
     S.results = S.order.map(id => {
       const p = S.players[id];
-      const invVal = p.inv.reduce((s, i) => s + trueValue(i), 0);
+      const invVal = p.inv.reduce((s, i) => s + trueValue(i), 0) + p.loans.reduce((s, l) => s + l.amount, 0);
       return { pid: id, name: p.name, color: p.color, cash: p.cash, invVal, worth: p.cash + invVal, items: p.inv.length, stats: p.stats, bankrupt: p.bankrupt, days: S.day - 1 };
     }).sort((a, b) => b.worth - a.worth);
     this.fx({ type: 'phase', phase: 'over' });
@@ -508,7 +586,8 @@ export class Sim {
       me: {
         pid, name: p.name, color: p.color, cash: p.cash, cap: capOf(p), up: p.up,
         ready: p.ready, bankrupt: p.bankrupt, summary: p.summary, stats: p.stats,
-        inv: p.inv.map(i => ({ uid: i.uid, id: i.id, cond: i.cond, paid: i.paid, day: i.day, est: this.estimate(p, i) })),
+        inv: p.inv.map(i => ({ uid: i.uid, id: i.id, cond: i.cond, paid: i.paid, day: i.day, est: this.estimate(p, i), mem: p.memory[i.id] || null })),
+        loans: p.loans.map(l => ({ id: l.id, itemId: l.inst.id, cond: l.inst.cond, amount: l.amount, back: l.back, rate: l.rate, due: l.due, est: this.estimate(p, l.inst) })),
       },
       players: S.order.map(id => {
         const x = S.players[id];
@@ -530,6 +609,7 @@ export class Sim {
         excl: c.for && c.for !== pid && this.live().length > 1 ? Math.max(0, c.openAt + EXCL_MS - now) : 0,
         st: { strikes: st.strikes, out: st.out, msg: st.msg }, feed: c.feed, look: c.look,
         est: this.estimate(p, c.inst), hint: this.sellerHint(p, c),
+        loan: c.loan || null, hard: !!c.hard, mem: p.memory[c.inst.id] || null,
       };
     }
     const b = S.buyer;
@@ -555,7 +635,7 @@ export class Sim {
     if (L >= 2) {
       const spread = 0.5 / L;
       const guess = nice(c.F * (1 + (hash01(p.pid + 'h' + c.id) - 0.5) * spread));
-      mood += ` Would probably take about ${cr(guess)}.`;
+      mood += c.loan ? ` Would settle for a loan of about ${cr(guess)}.` : ` Would probably take about ${cr(guess)}.`;
     }
     return mood;
   }
