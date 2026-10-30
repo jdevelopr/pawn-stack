@@ -110,6 +110,41 @@ swoop in and pay the price you worked for. Players who advertised get a
 storefront upgrades with buyers. Highest net worth (cash plus the true value of
 inventory) at the end wins.
 
+### AI rivals (solo)
+
+Pick 0 to 3 AI rivals on the main menu. They are full competitors: they haggle
+with the same sellers and buyers, can snipe a deal you were working on, price
+their shelves, buy upgrades, show up in the standings, and answer Pawn Guild
+notices. Each has a personality:
+
+| Rival | Style |
+|---|---|
+| Kara Voss | Greedy: quick to pounce, asks high, cheats on pacts, informs on the leader |
+| Dr. Ozzo | Fair: pays fair prices, pays its share, splits gifts evenly |
+| Brakk | Paranoid: cautious buyer, overpays tributes to stay safe, insures stock |
+
+With 0 rivals, solo plays as before with no Guild notices.
+
+### The Pawn Guild
+
+Every 5 sols, in the evening, the Pawn Guild posts a notice that hits every
+shop at once. Notices come from a shuffled deck, so all seven happen before any
+repeats. Every shop answers in secret; the answers are then revealed
+anonymously (totals and outcomes only, never who chose what).
+
+| Notice | The dilemma |
+|---|---|
+| Guild Tribute | Pledge toward a total. Fall short and every shop is raided; meet it and the lowest pledge is still raided while the highest earns a Guild favor |
+| Price Pact | Sign a 5-sol pact (+20% from buyers for all), or secretly undercut for a bigger bonus and risk an inspector's fine |
+| Grid Failure | Chip in for repairs. Funded: more walk-ins for 3 sols for everyone, payers or not. Not funded: a blackout with no walk-ins |
+| The Informant | Report a rival for fakes. Right: they're fined and you're paid. Wrong: you pay |
+| The Guild's Gift | The leading shop decides how to split a pot; if most other shops reject, nobody gets anything |
+| Auction of Favor | All-pay auction for a Rare item: everyone pays their bid, only the top bid wins |
+| Supply Ship | Claim crates. If total claims stay within the cargo, everyone gets theirs; overclaim and the ship is impounded |
+
+In multiplayer each decision has a 45-second timer (no answer counts as 0,
+"nobody", or the first option). In solo the game waits for you.
+
 ### Controls
 
 - **A / D** or **arrow keys**: walk
@@ -125,6 +160,8 @@ index.html        all screens
 css/style.css     pixel UI styling
 js/main.js        screens, solo/host/join wiring, render loop, input, panels
 js/sim.js         authoritative game rules (runs in solo, or on the host)
+js/ai.js          AI rival shopkeepers (act through the same rules as players)
+js/guild.js       Pawn Guild events: secret choices, anonymous reveals
 js/items.js       the 250 items, their sprites and palettes
 js/profiles.js    customer types: haggling behavior and speech lines
 js/art.js         Mars scene, humans/astronauts/aliens/droids, pixel font

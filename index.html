@@ -30,6 +30,14 @@
       <button data-len="0" role="radio" id="endless-btn">Endless</button>
     </div>
 
+    <div class="lbl">AI rivals <span class="lbl-note">(solo)</span></div>
+    <div class="seg" id="ai-seg" role="radiogroup">
+      <button data-ai="0" role="radio" class="on">None</button>
+      <button data-ai="1" role="radio">1</button>
+      <button data-ai="2" role="radio">2</button>
+      <button data-ai="3" role="radio">3</button>
+    </div>
+
     <div class="row">
       <button id="solo-btn" class="btn primary">Play solo</button>
       <button id="continue-btn" class="btn" hidden>Continue</button>
@@ -95,6 +103,7 @@
       <div id="upg" class="panel center" hidden></div>
       <div id="eve" class="panel center" hidden></div>
       <div id="pricep" class="panel center" hidden></div>
+      <div id="guildp" class="panel center" hidden></div>
       <div id="card" hidden><div class="card-inner"><div id="card-title"></div><div id="card-sub"></div></div></div>
       <div id="keys">A/D walk &middot; E use &middot; I inventory</div>
     </div>
@@ -129,6 +138,8 @@
       <li><b>Insurance</b> pays out on overnight theft and damage. The premium grows with the value of your stock.</li>
       <li>Your shop remembers the last price an item sold for, what you paid, and what the wholesaler gave.</li>
       <li><b>Customers</b> are colonists, miners, Earth tourists, relic collectors, smugglers, spacers, belt prospectors, Grey brokers, Glorps and Zix. Each type haggles differently; the deal panel tells you who you are dealing with.</li>
+      <li><b>Pawn Guild:</b> every 5 sols the Guild posts a notice that hits every shop at once: a tribute demand, a price pact, a grid repair fund, an informant's tip line, a gift to split, an auction, or a supply ship to share. Every shop answers in secret. Choices are revealed anonymously, so nobody ever learns who did what.</li>
+      <li><b>AI rivals:</b> in solo you can add up to 3 computer shopkeepers. They haggle with the same sellers and buyers, can beat you to a deal, show up in the standings, and answer Guild notices too.</li>
       <li><b>Multiplayer:</b> everyone shares the same sellers and buyers. First to close the deal wins it. Haggling an ask down lowers it for rivals too.</li>
       <li>A/D or arrows to walk, E to use the counter, shelves, or office. I opens inventory. Esc closes panels.</li>
     </ul>

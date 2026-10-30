@@ -53,6 +53,15 @@ for (const b of document.querySelectorAll('#len-seg button')) {
     sfx('click');
   });
 }
+app.aiN = Math.max(0, Math.min(3, +(store.get('pawn-ai') || 0)));
+for (const b of document.querySelectorAll('#ai-seg button')) {
+  b.classList.toggle('on', +b.dataset.ai === app.aiN);
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#ai-seg button').forEach(x => x.classList.toggle('on', x === b));
+    app.aiN = +b.dataset.ai; store.set('pawn-ai', String(app.aiN));
+    sfx('click');
+  });
+}
 if (store.get(SAVE_KEY)) $('#continue-btn').hidden = false;
 
 $('#solo-btn').addEventListener('click', () => {
@@ -61,6 +70,7 @@ $('#solo-btn').addEventListener('click', () => {
   app.mode = 'solo'; app.pid = 'me';
   app.sim = new Sim({ maxDays: app.maxDays, mode: 'solo' });
   app.sim.addPlayer('me', playerName());
+  for (let i = 0; i < app.aiN; i++) app.sim.addAI(i);
   app.sim.start(Date.now());
   startGame();
 });
@@ -406,7 +416,7 @@ function onPhase(ph, old) {
   }
   if (ph === 'evening') {
     showCard('CLOSING TIME', '', 1400);
-    setTimeout(() => { if (app.view?.phase === 'evening' && !panel) openPanel('eve'); }, 1300);
+    setTimeout(() => { if (app.view?.phase === 'evening' && !panel) openPanel(guildPending() ? 'guild' : 'eve'); }, 1300);
   }
   if (ph === 'noon') setTimeout(() => { if (app.view?.phase === 'noon') openPanel('price'); }, 300);
   if (ph === 'sell' && old === 'noon') showCard('AFTERNOON', 'Doors open: buyers and walk-in shoppers', 1600);
@@ -442,6 +452,12 @@ function onFx(e) {
     case 'haggle': if (me) { sfx('haggle'); shakeSay(false); } break;
     case 'strike': if (me) { sfx('strike'); shakeSay(true); } break;
     case 'upgrade': if (me) { sfx('upgrade'); flashUpgrade = e.id; } break;
+    case 'guild': sfx('open'); break;
+    case 'guildReveal':
+      sfx('day');
+      guildKey = '';
+      if (app.view?.phase === 'evening' && panel !== 'guild') setTimeout(() => openPanel('guild'), 0);
+      break;
     case 'phase':
       if (e.phase === 'dawn') sfx('day');
       if (e.phase === 'noon') sfx('day');
@@ -475,7 +491,7 @@ function interact() {
   if (z === 'shelves') openPanel(app.view?.phase === 'noon' ? 'price' : 'inv');
   else if (z === 'office') openPanel('upg');
   else if (z === 'counter') {
-    if (app.view?.phase === 'evening') openPanel('eve');
+    if (app.view?.phase === 'evening') openPanel(guildPending() ? 'guild' : 'eve');
     else { closePanel(); dirtyUI = true; }
   }
 }
@@ -728,16 +744,28 @@ function ui(t) {
 
   // event banner
   const eb = $('#event-banner');
+  const bits = [];
   if (v.event && ph !== 'over') {
     const hot = v.event.mod > 1;
-    eb.innerHTML = `<span class="${hot ? 'hot' : 'cold'}">${esc(v.event.cat)} ${hot ? 'in demand' : 'slump'}</span> this sol`;
-  } else eb.innerHTML = '';
+    bits.push(`<span class="${hot ? 'hot' : 'cold'}">${esc(v.event.cat)} ${hot ? 'in demand' : 'slump'}</span> this sol`);
+  }
+  if (ph !== 'over' && v.mods) {
+    const M = v.mods;
+    if (M.pact) bits.push(`<span class="guild-tag">PRICE PACT</span> buyers pay +${M.pact.bonus}% to sol ${M.pact.until}`);
+    if (M.boost) bits.push(`<span class="guild-tag">GRID BOOST</span> more traffic to sol ${M.boost}`);
+    if (M.blackout === v.day) bits.push(`<span class="cold">BLACKOUT</span> no walk-ins this sol`);
+  }
+  const ebHtml = bits.join(' &middot; ');
+  if (eb.dataset.k !== ebHtml) { eb.innerHTML = ebHtml; eb.dataset.k = ebHtml; }
 
   // rivals
   const rv = $('#rivals');
   if (v.players.length > 1) {
-    rv.innerHTML = v.players.map(p => `<div class="rival ${p.connected ? '' : 'off'}"><span class="sw" style="background:${p.color}"></span>${esc(p.name)}${p.pid === app.pid ? ' (you)' : ''} ${money(p.cash)} &middot; ${p.n} items${ph === 'evening' && p.ready ? ' <span class="rd">READY</span>' : ''}${p.bankrupt ? ' <span class="rd" style="color:var(--red)">BROKE</span>' : ''}</div>`).join('');
+    rv.innerHTML = v.players.map(p => `<div class="rival ${p.connected ? '' : 'off'}"><span class="sw" style="background:${p.color}"></span>${esc(p.name)}${p.pid === app.pid ? ' (you)' : p.ai ? ' <span class="ai-tag">AI</span>' : ''} ${money(p.cash)} &middot; ${p.n} items${ph === 'evening' && p.ready ? ' <span class="rd">READY</span>' : ''}${p.bankrupt ? ' <span class="rd" style="color:var(--red)">BROKE</span>' : ''}</div>`).join('');
   } else rv.innerHTML = '';
+  // keep the deal panel clear of the standings list
+  const dealTop = (rv.childElementCount ? rv.offsetTop + rv.offsetHeight + 6 : 34) + 'px';
+  if ($('#deal').style.top !== dealTop) $('#deal').style.top = dealTop;
 
   // log
   const logHtml = v.players.length > 1 ? v.log.slice(-4).map(l => `<div>${esc(l)}</div>`).join('') : '';
@@ -754,7 +782,7 @@ function ui(t) {
   const z = zoneAt(keeper.x);
   let prompt = '';
   if (cust && !cust.done && z !== 'counter') prompt = 'Customer at the counter';
-  if (ph === 'evening' && !panel) prompt = 'Office board: upgrades. Counter: day summary.';
+  if (ph === 'evening' && !panel) prompt = guildPending() ? 'The Pawn Guild is waiting on your answer (counter)' : 'Office board: upgrades. Counter: day summary.';
   if (ph === 'noon' && !panel) prompt = 'Shelves: set prices, then open the doors';
   $('#prompt').textContent = prompt;
 
@@ -763,6 +791,7 @@ function ui(t) {
   if (panel === 'inv') renderInv();
   if (panel === 'upg') renderUpg();
   if (panel === 'price') renderPrice();
+  if (panel === 'guild') renderGuild();
   fitPanels();
   dirtyUI = false;
 }
@@ -822,15 +851,16 @@ function openPanel(name) {
   panel = name;
   dirtyUI = true;
   sfx('open');
-  const el = { inv: '#invp', upg: '#upg', eve: '#eve', price: '#pricep' }[name];
+  const el = { inv: '#invp', upg: '#upg', eve: '#eve', price: '#pricep', guild: '#guildp' }[name];
   $(el).hidden = false;
   if (name === 'inv') renderInv(true);
   if (name === 'upg') renderUpg(true);
   if (name === 'eve') { eveKey = ''; renderEvening(); }
   if (name === 'price') { priceKey = ''; renderPrice(); }
+  if (name === 'guild') { guildKey = ''; renderGuild(); }
 }
 function closePanel() {
-  for (const s of ['#invp', '#upg', '#eve', '#pricep']) $(s).hidden = true;
+  for (const s of ['#invp', '#upg', '#eve', '#pricep', '#guildp']) $(s).hidden = true;
   panel = null;
 }
 
@@ -1103,7 +1133,7 @@ function renderPrice() {
   const v = app.view, el = $('#pricep');
   if (v.phase !== 'noon') { closePanel(); return; }
   const inv = v.me.inv;
-  const solo = v.players.length === 1;
+  const solo = v.mode === 'solo';
   const readyN = v.players.filter(p => p.ready && p.connected).length;
   const liveN = v.players.filter(p => p.connected && !p.bankrupt).length;
   const secs = v.left ? Math.ceil(remain(v.left) / 1000) : 0;
@@ -1174,8 +1204,8 @@ function renderEvening() {
   const s = v.me.summary;
   const readyN = v.players.filter(p => p.ready && p.connected).length;
   const liveN = v.players.filter(p => p.connected && !p.bankrupt).length;
-  const solo = v.players.length === 1;
-  const key = JSON.stringify([s, v.me.cash, v.me.ready, readyN, Math.ceil(remain(v.left) / 1000)]);
+  const solo = v.mode === 'solo';
+  const key = JSON.stringify([s, v.me.cash, v.me.ready, readyN, Math.ceil(remain(v.left) / 1000), v.guild && [v.guild.stage, v.guild.myTurn, v.guild.waiting]]);
   if (key === eveKey) return;
   eveKey = key;
   if (!s) { el.innerHTML = ''; return; }
@@ -1200,19 +1230,114 @@ function renderEvening() {
     ${s.restored.map(r => line(`Restored ${esc(ITEMS[r.id].n)}`, `now ${COND[r.cond].n}`, 'p')).join('')}
     ${s.stolen != null ? line(`Stolen: ${esc(ITEMS[s.stolen].n)}`, 'gone', 'n') : ''}
     ${s.forced.map(f => line(`Sold off to pay bills: ${esc(ITEMS[f.id].n)}`, money(f.price), 'n')).join('')}
+    ${s.pactFine ? line('Guild inspectors caught you undercutting the pact', '-' + money(s.pactFine), 'n') : ''}
+    ${v.guild ? `<h3>PAWN GUILD</h3>${v.guild.stage === 'reveal'
+      ? [...v.guild.result.pub.slice(-1), ...v.guild.result.mine].map(t => `<div class="meta">${esc(t)}</div>`).join('')
+      : `<div class="meta guild-due">${esc(v.guild.title)}: ${v.guild.myTurn ? 'your answer is needed.' : `waiting on ${v.guild.waiting} shop${v.guild.waiting === 1 ? '' : 's'}.`}</div>`}` : ''}
     <div class="total"><span>CASH ${money(v.me.cash)}</span><span style="color:${net >= 0 ? 'var(--green)' : 'var(--red)'}">${net >= 0 ? '+' : ''}${money(net)} TODAY</span></div>
     ${v.me.bankrupt ? '<div class="hint" style="color:var(--red)">You went bankrupt.</div>' : ''}
     <div class="row">
+      ${v.guild ? '<button class="btn" id="eve-guild">Guild</button>' : ''}
       <button class="btn" id="eve-staff">Staff</button>
       <button class="btn" id="eve-upg">Upgrades</button>
       <button class="btn" id="eve-inv">Inventory</button>
-      <button class="btn primary" id="eve-go" ${v.me.bankrupt ? 'disabled' : ''}>${solo ? (v.maxDays && v.day >= v.maxDays ? 'Final tally' : 'Open shop') : v.me.ready ? `Waiting ${readyN}/${liveN}` : `Ready (${Math.ceil(remain(v.left) / 1000)}s)`}</button>
+      <button class="btn primary" id="eve-go" ${v.me.bankrupt ? 'disabled' : ''}>${guildPending() ? 'Answer the Guild' : solo ? (v.maxDays && v.day >= v.maxDays ? 'Final tally' : 'Open shop') : v.me.ready ? `Waiting ${readyN}/${liveN}` : `Ready (${Math.ceil(remain(v.left) / 1000)}s)`}</button>
     </div>`;
   el.querySelector('[data-close]').addEventListener('click', closePanel);
   $('#eve-staff').addEventListener('click', () => openOffice('staff'));
   $('#eve-upg').addEventListener('click', () => openOffice('upgrades'));
   $('#eve-inv').addEventListener('click', () => openPanel('inv'));
-  $('#eve-go').addEventListener('click', () => { sfx('click'); act({ type: 'ready', v: !v.me.ready }); });
+  $('#eve-guild')?.addEventListener('click', () => openPanel('guild'));
+  $('#eve-go').addEventListener('click', () => { sfx('click'); if (guildPending()) openPanel('guild'); else act({ type: 'ready', v: !v.me.ready }); });
+}
+
+/* Pawn Guild notice */
+let guildKey = '', guildStruct = '', guildAnimFor = '';
+function guildPending() { const g = app.view?.guild; return !!(g && g.myTurn && !app.view.me.bankrupt); }
+// three-ball pawn crest, drawn as pixels
+const GUILD_SEAL = '<svg class="g-seal" viewBox="0 0 11 11" shape-rendering="crispEdges" aria-hidden="true"><path fill="#f2c14e" d="M1 0h9v1H1zM0 1h1v6H0zM10 1h1v6h-1zM1 7h1v1H1zM9 7h1v1H9zM2 8h1v1H2zM8 8h1v1H8zM3 9h5v1H3z"/><path fill="#5a3d1e" d="M1 1h9v6H1zM2 7h7v1H2zM3 8h5v1H3z"/><path fill="#e8554e" d="M2 2h2v2H2zM7 2h2v2H7zM4.5 5h2v2h-2z"/></svg>';
+function guildQuick(inp) {
+  const max = inp.max, s = inp.suggest || 0;
+  if (max <= 15) return Array.from({ length: max + 1 }, (_, i) => i);
+  let q = s ? [0, Math.round(s / 2), s, Math.round(s * 1.5)] : [0, max * 0.05, max * 0.1, max * 0.2].map(Math.round);
+  return [...new Set(q.map(x => Math.min(max, x)))];
+}
+function renderGuild() {
+  const v = app.view, el = $('#guildp'), g = v.guild;
+  if (v.phase !== 'evening' || !g) { closePanel(); return; }
+  const secs = g.left ? Math.ceil(remain(g.left) / 1000) : 0;
+  const struct = JSON.stringify([g.id, g.stage, g.myTurn, g.chosen, g.offer, !!g.result, g.input?.max]);
+  const key = struct + '|' + secs + '|' + g.waiting;
+  if (key === guildKey) return;
+  const tm = el.querySelector('.g-timer');
+  if (struct === guildStruct && tm) {           // only the timer / waiting count changed: patch in place
+    tm.textContent = secs ? `${secs}s` : '';
+    const w = el.querySelector('.g-wait'); if (w) w.textContent = waitTxt(g);
+    guildKey = key; return;
+  }
+  guildKey = key; guildStruct = struct;
+  const isMoney = !(g.id === 'supply');
+  let body = '';
+  if (g.stage !== 'reveal') {
+    if (g.myTurn) {
+      const inp = g.input;
+      if (g.id === 'gift' && g.stage === 'vote') {
+        body += `<div class="g-offer">The leading shop keeps <b>${money(g.offer.keep)}</b>. Every other shop gets <b>${money(g.offer.each)}</b>.</div>`;
+      }
+      if (g.id === 'gift' && g.stage === 'choose') body += '<div class="g-offer">Your shop is the colony leader. You decide the split.</div>';
+      if (inp.kind === 'number') {
+        const val = Math.min(inp.max, inp.suggest || 0);
+        body += `<div class="g-num">
+          <label class="meta" for="g-in">${esc(inp.label)}${g.id === 'gift' ? ` (out of ${money(inp.max)})` : isMoney ? ` (you have ${money(inp.max)})` : ` (0-${inp.max})`}</label>
+          <div class="g-row"><input id="g-in" class="field tag-in" type="number" min="0" max="${inp.max}" value="${val}">
+            ${guildQuick(inp).map(q => `<button class="btn small" data-q="${q}">${isMoney ? money(q) : q}</button>`).join('')}</div>
+          ${g.id === 'gift' ? '<div class="meta g-calc"></div>' : ''}
+          <div class="row"><button class="btn primary" id="g-send">Seal my answer</button></div>
+        </div>`;
+      } else if (inp.kind === 'choice') {
+        body += `<div class="g-opts">${inp.options.map(([k, l]) => `<button class="btn" data-v="${k}">${esc(l)}</button>`).join('')}</div>`;
+      } else if (inp.kind === 'target') {
+        body += `<div class="meta">Report which shop?</div><div class="g-opts">${(g.targets || []).map(t => `<button class="btn" data-v="${t.pid}">${esc(t.name)}</button>`).join('')}<button class="btn" data-v="none">Nobody</button></div>`;
+      }
+    } else {
+      if (g.id === 'gift' && g.stage === 'vote' && g.isProposer) body += `<div class="g-offer">You keep <b>${money(g.offer.keep)}</b>. Every other shop gets <b>${money(g.offer.each)}</b>.</div>`;
+      else if (g.id === 'gift' && g.stage === 'vote') body += `<div class="g-offer">The leading shop keeps <b>${money(g.offer.keep)}</b>. Every other shop gets <b>${money(g.offer.each)}</b>.</div>`;
+      body += `<div class="g-sealed">${GUILD_SEAL}<span class="g-wait">${waitTxt(g)}</span></div>`;
+    }
+  } else {
+    const R = g.result, anim = guildAnimFor !== v.day + g.id;
+    guildAnimFor = v.day + g.id;
+    body += `<h3>SEALED ANSWERS</h3><div class="g-reveal ${anim ? 'anim' : ''}">${R.reveal.map((t, i) => `<div class="g-card" style="--i:${i}">${esc(t)}</div>`).join('')}</div>
+      <h3>OUTCOME</h3>${R.pub.map(t => `<div class="g-pub">${esc(t)}</div>`).join('')}
+      ${R.mine.map(t => `<div class="g-mine">${esc(t)}</div>`).join('')}
+      <div class="hint">Answers are anonymous. Nobody learns who chose what.</div>
+      <div class="row"><button class="btn primary" id="g-done">Continue</button></div>`;
+  }
+  el.innerHTML = `${closeBtn}<div class="g-head">${GUILD_SEAL}<div><div class="g-kicker">PAWN GUILD NOTICE</div><h2>${esc(g.title)}</h2></div><span class="g-timer">${secs ? `${secs}s` : ''}</span></div>
+    <p class="g-text">${esc(g.text)}</p>${body}`;
+  el.querySelector('[data-close]').addEventListener('click', closePanel);
+  const send = value => { sfx('click'); act({ type: 'guild', value }); };
+  const inEl = el.querySelector('#g-in');
+  if (inEl) {
+    const calc = () => {
+      const c = el.querySelector('.g-calc'); if (!c) return;
+      const keep = Math.max(0, Math.min(g.input.max, Math.floor(+inEl.value) || 0));
+      c.textContent = `Each other shop gets ${money(Math.floor((g.input.max - keep) / Math.max(1, v.players.filter(p => !p.bankrupt).length - 1)))}.`;
+    };
+    calc();
+    inEl.addEventListener('input', calc);
+    inEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); send(+inEl.value); } });
+    el.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => { sfx('tick'); inEl.value = b.dataset.q; calc(); }));
+    el.querySelector('#g-send').addEventListener('click', () => send(+inEl.value));
+  }
+  el.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => send(b.dataset.v)));
+  el.querySelector('#g-done')?.addEventListener('click', () => openPanel('eve'));
+}
+function waitTxt(g) {
+  if (g.id === 'gift' && g.stage === 'choose' && !g.isProposer) return 'The leading shop is deciding how to split the gift...';
+  return g.chosen || g.isProposer
+    ? `Your answer is sealed. Waiting on ${g.waiting} shop${g.waiting === 1 ? '' : 's'}...`
+    : `Waiting on ${g.waiting} shop${g.waiting === 1 ? '' : 's'}...`;
 }
 
 /* results */

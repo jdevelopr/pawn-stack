@@ -396,3 +396,32 @@ input[type=number] { -moz-appearance: textfield; }
 #ui .price-ctl .btn { font-size: 7px; padding: 4px 5px 5px; }
 #ui #pricep { width: 780px; }
 #ui .price-row .inv-txt .nm { font-size: 16px; }
+
+/* AI rivals, Pawn Guild notices */
+.lbl-note { color: var(--dim); text-transform: none; letter-spacing: 0; }
+.ai-tag { font-family: var(--head); font-size: 8px; color: #141a2b; background: var(--dim); padding: 1px 3px 2px; vertical-align: 2px; }
+.guild-tag { font-family: var(--head); font-size: 7px; color: #141a2b; background: var(--gold); padding: 1px 3px 2px; vertical-align: 2px; }
+#ui #guildp { width: 520px; }
+.g-head { display: flex; gap: 8px; align-items: center; margin-right: 28px; }
+.g-head h2 { margin: 0 !important; }
+.g-head > div { flex: 1; }
+.g-seal { width: 22px; height: 22px; flex: 0 0 auto; image-rendering: pixelated; }
+.g-kicker { font-family: var(--head); font-size: 7px; color: var(--gold); letter-spacing: 1px; margin-bottom: 3px; }
+.g-timer { font-family: var(--head); font-size: 8px; color: var(--dim); }
+.g-text { font-size: 16px; line-height: 1.05; margin: 8px 0 6px; color: var(--cream); }
+.g-offer { font-size: 16px; line-height: 1.05; margin: 4px 0; padding: 4px 6px; background: var(--panel-d); box-shadow: inset 2px 2px 0 #120d1a; }
+.g-offer b { color: var(--gold); font-weight: normal; }
+.g-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.g-row .tag-in { width: 90px; text-align: right; }
+.g-opts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.g-sealed { display: flex; gap: 8px; align-items: center; margin-top: 6px; font-size: 16px; color: var(--dim); }
+.g-sealed .g-seal { width: 16px; height: 16px; animation: g-pulse 1.2s steps(2) infinite; }
+@keyframes g-pulse { 50% { opacity: .35; } }
+.g-reveal { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.g-card { font-size: 15px; line-height: 1; padding: 4px 6px; background: var(--panel-d); box-shadow: inset 2px 2px 0 #120d1a; }
+.g-reveal.anim .g-card { animation: g-flip 360ms steps(4) both; animation-delay: calc(var(--i) * 420ms); }
+@keyframes g-flip { 0% { transform: scaleY(0); opacity: 0; } 100% { transform: scaleY(1); opacity: 1; } }
+.g-pub { font-size: 16px; line-height: 1.05; margin-top: 2px; }
+.g-mine { font-size: 16px; line-height: 1.05; margin-top: 4px; color: var(--gold); }
+.guild-due { color: var(--gold) !important; }
+@media (prefers-reduced-motion: reduce) { .g-reveal.anim .g-card, .g-sealed .g-seal { animation: none; } }

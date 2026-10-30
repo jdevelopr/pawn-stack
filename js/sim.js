@@ -10,6 +10,8 @@
  */
 import { ITEMS, BY_TIER, CATS } from './items.js';
 import { PROFILES, pickProfile, say, cr } from './profiles.js';
+import { aiTick, makeAI } from './ai.js';
+import { maybeStartGuild, guildTick, guildAct, guildView } from './guild.js';
 
 export const COND = [
   { n: 'Broken', m: 0.3 }, { n: 'Worn', m: 0.65 }, { n: 'Good', m: 1 }, { n: 'Mint', m: 1.45 },
@@ -89,11 +91,12 @@ export class Sim {
       players: {}, order: [],
       seller: null, sellers: [], buyer: null, buyers: [], nextAt: 0,
       log: [], fx: [], fxId: 0, uid: 1, event: null, results: null,
+      guild: null, guildDeck: null, mods: {},
     };
     this.dirty = true;
   }
   static load(json) {
-    const sim = new Sim(json.cfg); sim.s = json;
+    const sim = new Sim(json.cfg); sim.s = json; json.mods ||= {};
     for (const p of Object.values(json.players)) {   // older saves
       p.loans ||= []; p.memory ||= {}; p.insurance ||= 0;
       for (const i of p.inv) if (i.price === undefined) i.price = sim.suggestPrice(p, i);
@@ -102,7 +105,10 @@ export class Sim {
   }
   serialize() { return JSON.parse(JSON.stringify(this.s)); }
 
-  get solo() { return this.s.order.length === 1; }
+  /** Solo games (with or without AI rivals) never put the player on a timer. */
+  get solo() { return this.s.cfg.mode === 'solo'; }
+  /** More than one shop in the game (human or AI): rival activity is shown. */
+  get multi() { return this.s.order.length > 1; }
   live() { return this.s.order.map(id => this.s.players[id]).filter(p => !p.bankrupt); }
 
   addPlayer(pid, name) {
@@ -117,6 +123,13 @@ export class Sim {
       today: null, summary: null,
     };
     S.players[pid] = p; S.order.push(pid); this.dirty = true;
+    return p;
+  }
+  /** Add an AI rival shop (solo games). */
+  addAI(slot) {
+    const a = makeAI(slot);
+    const p = this.addPlayer('ai' + slot, a.name);
+    p.ai = a;
     return p;
   }
   removePlayer(pid) {
@@ -146,6 +159,11 @@ export class Sim {
     S.event = Math.random() < 0.6
       ? { cat: pick(CATS), mod: Math.random() < 0.65 ? 1.35 : 0.75 }
       : null;
+    S.guild = null;
+    const M = S.mods;
+    if (M.pact && S.day > M.pact.until) delete M.pact;
+    if (M.boost && S.day > M.boost.until) delete M.boost;
+    if (M.blackout && S.day > M.blackout.day) delete M.blackout;
     S.sellers = this.genSellers();
     S.buyers = this.genBuyerSlots();
     S.seller = null; S.buyer = null;
@@ -237,6 +255,8 @@ export class Sim {
 
   tick(now) {
     const S = this.s;
+    for (const id of S.order) { const p = S.players[id]; if (p.ai) aiTick(this, p, now); }
+    if (S.phase === 'evening') guildTick(this, now);
     switch (S.phase) {
       case 'dawn':
         if (now >= S.phaseEnd) { S.phase = 'buy'; S.nextAt = now; this.dirty = true; }
@@ -281,7 +301,7 @@ export class Sim {
         break;
       }
       case 'evening':
-        if (!this.solo && S.phaseEnd && now >= S.phaseEnd) this.nextDay(now);
+        if (!this.solo && S.phaseEnd && now >= S.phaseEnd && (!S.guild || S.guild.stage === 'reveal')) this.nextDay(now);
         break;
     }
   }
@@ -345,13 +365,13 @@ export class Sim {
           c.ask = na;
           st.msg = say(c.prof, c.loan ? 'loanCounter' : 'counter', { p: na });
           c.until = Math.min(c.until + 2500, c.openAt + SELLER_MS + 8000);
-          if (!this.solo) this.feed(c, `${p.name} haggled the ${c.loan ? 'loan' : 'ask'} to ${cr(na)}`);
+          if (this.multi) this.feed(c, `${p.name} haggled the ${c.loan ? 'loan' : 'ask'} to ${cr(na)}`);
           this.fx({ type: 'haggle', pid });
         } else {
           st.strikes += amt < c.F * 0.5 ? 2 : 1;
           if (st.strikes >= this.sellerLimit(p, c)) {
             st.out = true; st.msg = say(c.prof, 'walk');
-            if (!this.solo) this.feed(c, `${p.name} insulted the seller`);
+            if (this.multi) this.feed(c, `${p.name} insulted the seller`);
             this.checkAllOut(c, now);
           } else {
             st.msg = say(c.prof, 'insult');
@@ -382,7 +402,7 @@ export class Sim {
         if (inst.fake && hash01(b.id + ':' + inst.uid) < (BP.detect ?? 0.55)) {
           st.out = true; st.msg = say(b.prof, 'fake');
           this.fx({ type: 'strike', pid });
-          if (!this.solo) this.feed(b, `${p.name} tried to sell a fake`);
+          if (this.multi) this.feed(b, `${p.name} tried to sell a fake`);
           this.checkAllOut(b, now); this.dirty = true;
           return;
         }
@@ -393,7 +413,7 @@ export class Sim {
           if (counter >= price) return this.sell(p, b, inst, price, now);
           st.counter = { uid: inst.uid, price: counter };
           st.msg = say(b.prof, 'buyer', { p: counter });
-          if (!this.solo) this.feed(b, `${p.name} pitched ${ITEMS[inst.id].n}`);
+          if (this.multi) this.feed(b, `${p.name} pitched ${ITEMS[inst.id].n}`);
           this.fx({ type: 'haggle', pid });
         } else {
           st.strikes++;
@@ -439,7 +459,7 @@ export class Sim {
         p.cash -= cost; p.up[u.id]++;
         this.toast(pid, `${u.name} upgraded to level ${p.up[u.id]}.`, 'good');
         this.fx({ type: 'upgrade', pid, id: u.id });
-        if (!this.solo) this.log(`${p.name} bought ${u.name} ${p.up[u.id]}`);
+        if (this.multi) this.log(`${p.name} bought ${u.name} ${p.up[u.id]}`);
         this.dirty = true;
         return;
       }
@@ -476,9 +496,15 @@ export class Sim {
       }
       case 'ready': {
         if (S.phase !== 'evening' && S.phase !== 'noon') return;
+        const guildOpen = S.phase === 'evening' && S.guild && S.guild.stage !== 'reveal';
+        if (guildOpen && !p.ai && a.v !== false) return err('Answer the Pawn Guild notice first.');
         p.ready = a.v !== false; this.dirty = true;
         const live = this.live().filter(x => x.connected);
-        if (live.length && live.every(x => x.ready)) S.phase === 'noon' ? this.openDoors(now) : this.nextDay(now);
+        if (live.length && live.every(x => x.ready) && !guildOpen) S.phase === 'noon' ? this.openDoors(now) : this.nextDay(now);
+        return;
+      }
+      case 'guild': {
+        guildAct(this, p, a.value, now);
         return;
       }
     }
@@ -492,7 +518,16 @@ export class Sim {
   willing(b, p, inst) {
     const BP = PROFILES[b.prof].buy, it = ITEMS[inst.id];
     const prof = (BP.bonus?.[it.cat] || 1) * (BP.junk && it.t === 0 ? BP.junk : 1);
-    return genuineValue(inst) * b.mult * prof * (1 + 0.06 * p.up.sales + 0.025 * p.up.sign) * this.catMod(it.cat);
+    return genuineValue(inst) * b.mult * prof * (1 + 0.06 * p.up.sales + 0.025 * p.up.sign) * this.catMod(it.cat) * this.guildMult(p);
+  }
+
+  /** Price multiplier from Pawn Guild events (price pact, grid boost). */
+  guildMult(p) {
+    const M = this.s.mods, d = this.s.day;
+    let m = 1;
+    if (M.pact && d <= M.pact.until) m *= M.pact.mult[p.pid] || 1;
+    if (M.boost && d <= M.boost.until) m *= 1.05;
+    return m;
   }
 
   sellerLimit(p, c) {
@@ -540,16 +575,19 @@ export class Sim {
 
   /** Walk-in shoppers: each shop gets browsers on a timer; they buy a priced item if it's under what they'd pay. */
   browse(now) {
+    const M = this.s.mods;
+    if (M.blackout && M.blackout.day === this.s.day) return;          // grid failure: no walk-ins today
+    const boost = M.boost && this.s.day <= M.boost.until ? 1.4 : 1;
     for (const p of this.live()) {
       if (!p.nextBrowse || p.nextBrowse < now - 60000) p.nextBrowse = now + rand(...BROWSE_MS);
       if (now < p.nextBrowse) continue;
-      p.nextBrowse = now + rand(...BROWSE_MS) / (1 + 0.25 * p.up.sign);
+      p.nextBrowse = now + rand(...BROWSE_MS) / (1 + 0.25 * p.up.sign) / boost;
       p.today.browsers++;
       const priced = p.inv.map((it, idx) => ({ it, idx })).filter(x => x.it.price != null);
       if (!priced.length) continue;
       // a browser looks at up to 3 items; the first shelf row (window display) gets looked at twice as often
       const w = priced.map(x => (x.idx < 12 ? 2 : 1));
-      const mood = rand(0.75, 1.35) * (1 + 0.04 * p.up.sales + 0.03 * p.up.sign);
+      const mood = rand(0.75, 1.35) * (1 + 0.04 * p.up.sales + 0.03 * p.up.sign) * this.guildMult(p);
       let best = null, bestGain = 0;
       for (let k = 0; k < Math.min(3, priced.length); k++) {
         const pickI = wpick(w);
@@ -623,6 +661,13 @@ export class Sim {
       const cover = INSURANCE[p.insurance || 0].cover;
       p.cash -= rent + wages + premium;
       const claims = [];
+      let pactFine = 0;
+      const pact = S.mods.pact;
+      if (pact && S.day <= pact.until && pact.cheaters.includes(p.pid) && Math.random() < 0.25) {
+        pactFine = Math.max(50, Math.round(p.cash * 0.1)); p.cash -= pactFine;
+        pact.cheaters = pact.cheaters.filter(x => x !== p.pid); pact.mult[p.pid] = 1;
+        this.log('Guild inspectors caught a pact cheater and fined them.');
+      }
       const restored = [];
       for (let i = 0; i < p.up.restore; i++) {
         const cand = p.inv.filter(x => x.cond < 3 && !restored.includes(x.uid));
@@ -650,12 +695,13 @@ export class Sim {
       }
       if (p.cash < 0) { p.bankrupt = true; p.ready = true; }
       p.summary = {
-        ...p.today, rent, wages, premium, claims, damaged, stolen, forced, loans, cash: p.cash,
+        ...p.today, rent, wages, premium, claims, damaged, stolen, forced, loans, pactFine, cash: p.cash,
         restored: restored.map(uid => p.inv.find(i => i.uid === uid)).filter(Boolean).map(i => ({ id: i.id, cond: i.cond })),
       };
     }
     this.fx({ type: 'phase', phase: 'evening', day: S.day });
     if (!this.live().length) return this.finish();
+    maybeStartGuild(this, now);
     this.dirty = true;
   }
 
@@ -665,7 +711,7 @@ export class Sim {
     S.results = S.order.map(id => {
       const p = S.players[id];
       const invVal = p.inv.reduce((s, i) => s + trueValue(i), 0) + p.loans.reduce((s, l) => s + l.amount, 0);
-      return { pid: id, name: p.name, color: p.color, cash: p.cash, invVal, worth: p.cash + invVal, items: p.inv.length, stats: p.stats, bankrupt: p.bankrupt, days: S.day - 1 };
+      return { pid: id, ai: !!p.ai, name: p.name, color: p.color, cash: p.cash, invVal, worth: p.cash + invVal, items: p.inv.length, stats: p.stats, bankrupt: p.bankrupt, days: S.day - 1 };
     }).sort((a, b) => b.worth - a.worth);
     this.fx({ type: 'phase', phase: 'over' });
     this.dirty = true;
@@ -698,12 +744,18 @@ export class Sim {
       },
       players: S.order.map(id => {
         const x = S.players[id];
-        return { pid: id, name: x.name, color: x.color, cash: x.cash, n: x.inv.length, connected: x.connected, ready: x.ready, bankrupt: x.bankrupt, up: x.up };
+        return { pid: id, name: x.name, color: x.color, cash: x.cash, n: x.inv.length, connected: x.connected, ready: x.ready, bankrupt: x.bankrupt, up: x.up, ai: !!x.ai };
       }),
       queue: S.phase === 'buy' ? S.sellers.length : S.phase === 'sell' ? S.buyers.length : 0,
       log: S.log.slice(-6),
       fx: S.fx.filter(e => !e.pid || e.pid === pid || e.type === 'buy' || e.type === 'sell' || e.type === 'phase'),
       results: S.results,
+      guild: guildView(this, pid, now),
+      mods: {
+        pact: S.mods.pact && S.day <= S.mods.pact.until ? { bonus: Math.round(((S.mods.pact.mult[pid] || 1) - 1) * 100), until: S.mods.pact.until } : null,
+        boost: S.mods.boost && S.day <= S.mods.boost.until ? S.mods.boost.until : null,
+        blackout: S.mods.blackout ? S.mods.blackout.day : null,
+      },
       seller: null, buyer: null,
     };
     const c = S.seller;
