@@ -70,30 +70,33 @@
 <section id="game" class="screen">
   <div id="stage">
     <canvas id="cv" width="768" height="432"></canvas>
-    <div id="hud">
-      <div class="hud-l">
-        <div class="chip" id="hud-day">DAY 1</div>
-        <div class="chip" id="hud-phase">MORNING</div>
-        <div class="chip" id="hud-queue"></div>
+    <!-- In-game UI, scaled as a unit so it keeps the same size relative to the game -->
+    <div id="ui">
+      <div id="hud">
+        <div class="hud-l">
+          <div class="chip" id="hud-day">DAY 1</div>
+          <div class="chip" id="hud-phase">MORNING</div>
+          <div class="chip" id="hud-queue"></div>
+        </div>
+        <div class="hud-r">
+          <div class="chip cash" id="hud-cash">$0</div>
+          <div class="chip" id="hud-inv">0/8</div>
+          <button class="chip btn-chip" id="hud-mute" title="Sound (M)"></button>
+        </div>
       </div>
-      <div class="hud-r">
-        <div class="chip cash" id="hud-cash">$0</div>
-        <div class="chip" id="hud-inv">0/8</div>
-        <button class="chip btn-chip" id="hud-mute" title="Sound (M)"></button>
-      </div>
-    </div>
-    <div id="rivals"></div>
-    <div id="event-banner"></div>
-    <div id="prompt"></div>
-    <div id="log"></div>
-    <div id="toasts"></div>
+      <div id="rivals"></div>
+      <div id="event-banner"></div>
+      <div id="prompt"></div>
+      <div id="log"></div>
+      <div id="toasts"></div>
 
-    <div id="deal" class="panel side" hidden></div>
-    <div id="invp" class="panel center" hidden></div>
-    <div id="upg" class="panel center" hidden></div>
-    <div id="eve" class="panel center" hidden></div>
-    <div id="card" hidden><div class="card-inner"><div id="card-title"></div><div id="card-sub"></div></div></div>
-    <div id="keys">A/D walk &middot; E use &middot; I inventory</div>
+      <div id="deal" class="panel side" hidden></div>
+      <div id="invp" class="panel center" hidden></div>
+      <div id="upg" class="panel center" hidden></div>
+      <div id="eve" class="panel center" hidden></div>
+      <div id="card" hidden><div class="card-inner"><div id="card-title"></div><div id="card-sub"></div></div></div>
+      <div id="keys">A/D walk &middot; E use &middot; I inventory</div>
+    </div>
   </div>
 </section>
 

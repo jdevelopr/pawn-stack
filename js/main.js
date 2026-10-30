@@ -328,6 +328,15 @@ function fit() {
   const s = scale = Math.max(1, Math.floor(Math.min(innerWidth / (W * PX), innerHeight / (H * PX))));
   const st = $('#stage');
   st.style.width = W * PX * s + 'px'; st.style.height = H * PX * s + 'px';
+  // Scale the in-game UI with the game so it covers the same share of the screen as it did
+  // before the art resolution doubled: compare against the old 384x216 canvas's whole-number fit.
+  const oldS = Math.max(1, Math.floor(Math.min(innerWidth / W, innerHeight / H)));
+  const z = Math.min(1, (W * PX * s) / (W * oldS));
+  const ui = $('#ui');
+  if (ui) {
+    ui.style.zoom = z;
+    ui.style.width = (W * PX * s) / z + 'px'; ui.style.height = (H * PX * s) / z + 'px';
+  }
   document.documentElement.style.setProperty('--s', s);
 }
 addEventListener('resize', () => { fit(); drawBackdrop(); });
