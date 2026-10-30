@@ -848,7 +848,7 @@ function drawShelfItems(ctx, inv) {
     const [x, y] = SHELF_SLOTS[i];
     rect(ctx, x + 4, y + 28, 20, 2, '#2a3348');            // contact shadow
     drawItem(ctx, it.id, x, y);
-    rect(ctx, x + 20, y + 30, 8, 5, '#e8eef8'); rect(ctx, x + 21, y + 32, 5, 1, '#8f9cc0');   // price tag
+    if (it.price != null) { rect(ctx, x + 20, y + 30, 8, 5, '#e8eef8'); rect(ctx, x + 21, y + 32, 5, 1, '#8f9cc0'); }   // price tag = on sale
   });
 }
 

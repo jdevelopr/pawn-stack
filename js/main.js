@@ -6,13 +6,13 @@
  *   host   — Sim runs here; host plays locally and relays views to joiners.
  *   client — no Sim; sends actions, renders views the host sends back.
  */
-import { Sim, UPGRADES, COND, capOf } from './sim.js';
+import { Sim, UPGRADES, COND, capOf, INSURANCE } from './sim.js';
 import { ITEMS, TIERS, itemIcon } from './items.js';
 import { createHost, createClient, clientId, joinUrl, roomFromUrl } from './net.js';
 import {
   W, H, PX, WORLD_W, FLOOR, ZONES, COUNTER_X, CUSTOMER_X,
   drawScene, drawCounterFront, drawPerson, drawNight, lookFromSeed, bubble, pixelTextOutlined, textW,
-  drawChar,
+  drawChar, SHELF_SLOTS,
 } from './art.js';
 import { sfx, setMuted, isMuted } from './sound.js';
 import { PROFILES, say } from './profiles.js';
@@ -287,6 +287,7 @@ ctx.imageSmoothingEnabled = false;
 const keeper = { x: COUNTER_X, dir: -1, frame: 0, anim: 0, moving: false };
 let cam = COUNTER_X - W / 2;
 const npcs = [];    // customers walking in/out
+const shoppers = []; // walk-in browsers heading to the shelves
 const parts = [];   // particles
 const keys = new Set();
 let panel = null;   // 'inv' | 'upg' | 'eve' | null
@@ -426,6 +427,15 @@ function onFx(e) {
       if (me) { sfx('sell'); burst(CUSTOMER_X + 30, 140, '+' + money(e.price), '#7bc96f', 14); bumpCash(); }
       else { const p = playerById(e.pid); toast(`${p?.name || 'A rival'} made the sale.`, 'bad'); sfx('lose'); }
       break;
+    case 'walkin':
+      if (me) {
+        const sl = SHELF_SLOTS[e.slot] || SHELF_SLOTS[0];
+        const sx = (sl[0] + 14) / PX;
+        sfx('sell'); burst(sx, (sl[1] - 6) / PX, '+' + money(e.price), '#7bc96f', 8); bumpCash();
+        toast(`Walk-in bought ${ITEMS[e.itemId].n} for ${money(e.price)}.`, 'good');
+        shoppers.push({ look: lookFromSeed((Math.random() * 1e9) | 0), x: -14, target: sx, dir: 1, frame: 0, anim: 0, wait: 0.9, carry: e.itemId, out: false });
+      }
+      break;
     case 'coins': if (me) { sfx('sell'); burst(keeper.x, 140, '+' + money(e.amt), '#7bc96f', 6); bumpCash(); } break;
     case 'haggle': if (me) { sfx('haggle'); shakeSay(false); } break;
     case 'strike': if (me) { sfx('strike'); shakeSay(true); } break;
@@ -480,7 +490,17 @@ function loop(t) {
   if (document.body.dataset.screen === 'game') requestAnimationFrame(loop);
 }
 
+function updateShoppers(dt) {
+  for (const n of shoppers) {
+    const d = n.target - n.x;
+    if (Math.abs(d) > 0.5) { n.x += Math.sign(d) * Math.min(Math.abs(d), 170 * dt); n.dir = Math.sign(d); n.anim += dt; n.frame = 1 + (Math.floor(n.anim / 0.14) % 2); }
+    else { n.frame = 0; if (!n.out && (n.wait -= dt) <= 0) { n.out = true; n.target = -20; } }
+  }
+  for (let i = shoppers.length - 1; i >= 0; i--) if (shoppers[i].out && shoppers[i].x <= -14) shoppers.splice(i, 1);
+}
+
 function update(dt, t) {
+  updateShoppers(dt);
   let mv = 0;
   if (!panel) {
     if (keys.has('a') || keys.has('arrowleft')) mv -= 1;
@@ -556,6 +576,7 @@ function render(t) {
   if (up.restore) drawChar(ctx, 'person', 732, FLOOR, STAFF.restore, 0, 1, { apron: '#6b3d22', glasses: true });
   if (up.security >= 3) drawChar(ctx, 'bot', 220, FLOOR, { body: '#3f5a8a', eye: '#ff4a5a', light: '#ff4a5a' }, 0, 1, { badge: true }, t);
   // customers
+  for (const n of shoppers) drawChar(ctx, 'person', n.x, FLOOR, n.look, n.frame, n.dir, { carry: n.out ? n.carry : null });
   for (const n of npcs) drawCustomer(n, t);
   // keeper
   drawChar(ctx, 'person', keeper.x, FLOOR, KEEPER(me?.color), keeper.frame, keeper.dir, { apron: '#efe0b8' });
@@ -963,8 +984,15 @@ function renderInv(force) {
   const loans = v.me.loans || [];
   const key = JSON.stringify([inv, loans, v.me.cap, v.phase]);
   if (key === invKey && !force) return;
+  // don't rebuild under the player's cursor while they're typing a price
+  if (!force && el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
   invKey = key;
+  const listed = inv.filter(i => i.price != null).length;
   el.innerHTML = `${closeBtn}<h2>Inventory ${inv.length}/${v.me.cap}</h2>
+    <div class="inv-tools"><span class="meta">${listed} on sale to walk-ins</span>
+      <button class="btn small" data-bulk="auto">Auto-price all</button>
+      <button class="btn small" data-bulk="down">All -10%</button>
+      <button class="btn small" data-bulk="up">All +10%</button></div>
     ${inv.length ? `<div class="inv-grid">${inv.map((i, n) => `
       <div class="inv-card" style="--i:${n}" title="${esc(ITEMS[i.id].n)}">
         <img class="icon sm" src="${itemIcon(i.id, 2)}" alt="">
@@ -972,7 +1000,12 @@ function renderInv(force) {
         <div class="meta">${COND[i.cond].n} &middot; paid ${money(i.paid)}</div>
         <div class="meta">est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</div>
         ${i.mem?.sale ? `<div class="meta mem-dim">sold ${money(i.mem.sale.price)} (${COND[i.mem.sale.cond].n})</div>` : ''}</div>
-        <button class="btn small" data-dump="${i.uid}" title="Dump to wholesaler">Dump</button>
+        <div class="tag-row">
+          ${i.price != null
+            ? `<input class="field tag-in" type="number" min="1" value="${i.price}" data-price="${i.uid}" aria-label="Shelf price"><button class="btn small" data-hold="${i.uid}" title="Take off sale">Hold</button>`
+            : `<span class="meta held">Not for sale</span><button class="btn small good" data-list="${i.uid}" title="Put on sale at a suggested price">List</button>`}
+          <button class="btn small" data-dump="${i.uid}" title="Dump to wholesaler">Dump</button>
+        </div>
       </div>`).join('')}</div>` : '<div class="empty">Nothing on the shelves.</div>'}
     ${loans.length ? `<h3>VAULT: PAWN LOANS</h3><div class="inv-grid">${loans.map(l => `
       <div class="inv-card" title="${esc(ITEMS[l.itemId].n)}">
@@ -982,6 +1015,21 @@ function renderInv(force) {
         <div class="meta">due sol ${l.due}${l.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</div></div>
       </div>`).join('')}</div>` : ''}`;
   el.querySelector('[data-close]').addEventListener('click', closePanel);
+  el.querySelectorAll('[data-price]').forEach(inp => {
+    const commit = () => { const n = Math.floor(+inp.value); if (n > 0) act({ type: 'price', uid: inp.dataset.price, price: n }); };
+    inp.addEventListener('change', commit);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+  });
+  el.querySelectorAll('[data-hold]').forEach(b => b.addEventListener('click', () => act({ type: 'price', uid: b.dataset.hold, price: null })));
+  el.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => act({ type: 'price', uid: b.dataset.list, price: 'auto' })));
+  el.querySelectorAll('[data-bulk]').forEach(b => b.addEventListener('click', () => {
+    sfx('tick');
+    for (const i of inv) {
+      if (b.dataset.bulk === 'auto') act({ type: 'price', uid: i.uid, price: 'auto' });
+      else if (i.price != null) act({ type: 'price', uid: i.uid, price: Math.max(1, Math.round(i.price * (b.dataset.bulk === 'down' ? 0.9 : 1.1))) });
+    }
+    renderInv(true);
+  }));
   el.querySelectorAll('[data-dump]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.confirm) { act({ type: 'dump', uid: b.dataset.dump }); }
     else { b.dataset.confirm = '1'; b.textContent = 'Sure?'; b.classList.add('bad'); }
@@ -990,35 +1038,59 @@ function renderInv(force) {
 
 /* upgrades */
 let upgKey = '';
+let officeTab = 'upgrades';
 function renderUpg(force) {
   const v = app.view, el = $('#upg');
   const eve = v.phase === 'evening';
-  const key = JSON.stringify([v.me.up, v.me.cash, v.phase]);
+  const key = JSON.stringify([v.me.up, v.me.cash, v.phase, v.me.insurance, v.me.premium, officeTab]);
   if (key === upgKey && !force) return;
   upgKey = key;
-  el.innerHTML = `${closeBtn}<h2>Upgrades</h2>
+  const tabs = [['staff', 'Staff'], ['upgrades', 'Upgrades'], ['insurance', 'Insurance']];
+  const wages = UPGRADES.filter(u => u.staff).reduce((t, u) => t + v.me.up[u.id] * u.wage, 0);
+  let body = '';
+  if (officeTab === 'insurance') {
+    body = `<div class="hint">Covers overnight theft and damage. The premium is charged each night with rent and grows with the value of your stock.</div>
+      <div class="upg-list">${INSURANCE.map(I => {
+        const prem = I.id ? Math.round(I.base + I.rate * v.me.inv.reduce((t, i) => t + (i.paid || 0), 0)) : 0;
+        const on = (v.me.insurance || 0) === I.id;
+        return `<div class="upg ${on ? 'on' : ''}">
+          <div class="nm">${I.name}${on ? ' <span class="staff">ACTIVE</span>' : ''}</div>
+          <div class="ds">${esc(I.desc)}${I.id ? ` About ${money(prem)} per sol right now.` : ''}</div>
+          <div class="upg-btns"><button class="btn ${on ? '' : 'primary'}" data-ins="${I.id}" ${!eve || on ? 'disabled' : ''}>${on ? 'Current' : 'Choose'}</button></div>
+        </div>`;
+      }).join('')}</div>`;
+  } else {
+    const list = UPGRADES.filter(u => (officeTab === 'staff') === !!u.staff);
+    body = `${officeTab === 'staff' ? `<div class="kv"><span>Wages per sol</span><b>${money(wages)}</b></div>` : ''}
+      <div class="upg-list">${list.map(u => {
+        const lvl = v.me.up[u.id], max = u.cost.length, cost = u.cost[lvl];
+        const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
+        return `<div class="upg">
+          <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">${money(u.wage)}/SOL EACH</span>` : ''}</div>
+          <div class="ds">${esc(u.desc)}</div>
+          <div class="upg-btns">
+            <button class="btn ${lvl < max ? 'primary' : ''}" data-up="${u.id}" ${!eve || lvl >= max || cost > v.me.cash ? 'disabled' : ''}>${lvl >= max ? 'MAX' : (u.staff ? 'Hire ' : '') + money(cost)}</button>
+            ${lvl > 0 ? `<button class="btn small" data-down="${u.id}" ${eve ? '' : 'disabled'} title="${u.staff ? 'Saves ' + money(u.wage) + ' per sol' : 'Refunds ' + money(Math.round(u.cost[lvl - 1] * 0.3))}">${u.staff ? 'Let go' : 'Sell back'}</button>` : ''}
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+  }
+  el.innerHTML = `${closeBtn}<h2>Office</h2>
+    <div class="tabs">${tabs.map(([id, n]) => `<button class="tab ${officeTab === id ? 'on' : ''}" data-tab="${id}">${n}</button>`).join('')}</div>
     <div class="kv"><span>Cash</span><b>${money(v.me.cash)}</b></div>
-    ${eve ? '' : '<div class="hint">Upgrades can be bought in the evening.</div>'}
-    <div class="upg-list">${UPGRADES.map(u => {
-      const lvl = v.me.up[u.id], max = u.cost.length, cost = u.cost[lvl];
-      const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
-      return `<div class="upg">
-        <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">STAFF ${money(u.wage)}/SOL PER LVL</span>` : ''}</div>
-        <div class="ds">${esc(u.desc)}</div>
-        <div class="upg-btns">
-          <button class="btn ${lvl < max ? 'primary' : ''}" data-up="${u.id}" ${!eve || lvl >= max || cost > v.me.cash ? 'disabled' : ''}>${lvl >= max ? 'MAX' : money(cost)}</button>
-          ${lvl > 0 ? `<button class="btn small" data-down="${u.id}" ${eve ? '' : 'disabled'} title="${u.staff ? 'Saves ' + money(u.wage) + ' per sol' : 'Refunds ' + money(Math.round(u.cost[lvl - 1] * 0.3))}">${u.staff ? 'Let go' : 'Sell back'}</button>` : ''}
-        </div>
-      </div>`;
-    }).join('')}</div>`;
+    ${eve ? '' : '<div class="hint">Changes can be made in the evening.</div>'}
+    ${body}`;
   flashUpgrade = null;
   el.querySelector('[data-close]').addEventListener('click', closePanel);
+  el.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { officeTab = b.dataset.tab; sfx('tick'); renderUpg(true); }));
   el.querySelectorAll('[data-up]').forEach(b => b.addEventListener('click', () => act({ type: 'upgrade', id: b.dataset.up })));
+  el.querySelectorAll('[data-ins]').forEach(b => b.addEventListener('click', () => act({ type: 'insure', level: +b.dataset.ins })));
   el.querySelectorAll('[data-down]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.confirm) act({ type: 'downgrade', id: b.dataset.down });
     else { b.dataset.confirm = '1'; b.textContent = 'Confirm'; b.classList.add('bad'); }
   }));
 }
+function openOffice(tab) { if (tab) officeTab = tab; openPanel('upg'); }
 
 /* evening summary */
 let eveKey = '';
@@ -1039,6 +1111,8 @@ function renderEvening() {
     <div class="sum-grid">
       <div class="col"><h3>BOUGHT</h3>${s.bought.length ? s.bought.map(b => line(esc(ITEMS[b.id].n), money(b.price))).join('') : '<div class="meta">Nothing</div>'}</div>
       <div class="col"><h3>SOLD</h3>${s.sold.length ? s.sold.map(b => line(esc(ITEMS[b.id].n), `${money(b.price)} (${b.price - b.paid >= 0 ? '+' : ''}${money(b.price - b.paid)})`, b.price >= b.paid ? 'p' : 'n')).join('') : '<div class="meta">Nothing</div>'}
+      ${s.walkins?.length ? '<h3>WALK-IN SALES</h3>' + s.walkins.map(b => line(esc(ITEMS[b.id].n), `${money(b.price)} (${b.price - b.paid >= 0 ? '+' : ''}${money(b.price - b.paid)})`, b.price >= b.paid ? 'p' : 'n')).join('') : ''}
+      ${s.browsers ? `<div class="meta">${s.browsers} browsers, ${s.walkins?.length || 0} bought</div>` : ''}
       ${s.dumped.length ? '<h3>DUMPED</h3>' + s.dumped.map(b => line(esc(ITEMS[b.id].n), money(b.price), b.price >= b.paid ? 'p' : 'n')).join('') : ''}
       ${s.lent?.length ? '<h3>LOANED OUT</h3>' + s.lent.map(b => line(esc(ITEMS[b.id].n), `${money(b.amount)} (repays ${money(b.back)})`)).join('') : ''}</div>
     </div>
@@ -1046,18 +1120,23 @@ function renderEvening() {
     ${(s.loans || []).map(l => l.kind === 'repaid' ? line(`Loan repaid: ${esc(ITEMS[l.id].n)}`, `+${money(l.back)}`, 'p') : line(`Loan forfeited: ${esc(ITEMS[l.id].n)} is yours`, `cost ${money(l.amount)}`)).join('')}
     ${line('Rent', '-' + money(s.rent), 'n')}
     ${s.wages ? line('Staff wages', '-' + money(s.wages), 'n') : ''}
+    ${s.premium ? line('Insurance premium', '-' + money(s.premium), 'n') : ''}
+    ${s.damaged ? line(`Damaged overnight: ${esc(ITEMS[s.damaged.id].n)}`, `now ${COND[s.damaged.cond].n}`, 'n') : ''}
+    ${(s.claims || []).map(c => line(`Insurance paid (${c.kind}): ${esc(ITEMS[c.id].n)}`, '+' + money(c.pay), 'p')).join('')}
     ${s.restored.map(r => line(`Restored ${esc(ITEMS[r.id].n)}`, `now ${COND[r.cond].n}`, 'p')).join('')}
     ${s.stolen != null ? line(`Stolen: ${esc(ITEMS[s.stolen].n)}`, 'gone', 'n') : ''}
     ${s.forced.map(f => line(`Sold off to pay bills: ${esc(ITEMS[f.id].n)}`, money(f.price), 'n')).join('')}
     <div class="total"><span>CASH ${money(v.me.cash)}</span><span style="color:${net >= 0 ? 'var(--green)' : 'var(--red)'}">${net >= 0 ? '+' : ''}${money(net)} TODAY</span></div>
     ${v.me.bankrupt ? '<div class="hint" style="color:var(--red)">You went bankrupt.</div>' : ''}
     <div class="row">
+      <button class="btn" id="eve-staff">Staff</button>
       <button class="btn" id="eve-upg">Upgrades</button>
       <button class="btn" id="eve-inv">Inventory</button>
       <button class="btn primary" id="eve-go" ${v.me.bankrupt ? 'disabled' : ''}>${solo ? (v.maxDays && v.day >= v.maxDays ? 'Final tally' : 'Open shop') : v.me.ready ? `Waiting ${readyN}/${liveN}` : `Ready (${Math.ceil(remain(v.left) / 1000)}s)`}</button>
     </div>`;
   el.querySelector('[data-close]').addEventListener('click', closePanel);
-  $('#eve-upg').addEventListener('click', () => openPanel('upg'));
+  $('#eve-staff').addEventListener('click', () => openOffice('staff'));
+  $('#eve-upg').addEventListener('click', () => openOffice('upgrades'));
   $('#eve-inv').addEventListener('click', () => openPanel('inv'));
   $('#eve-go').addEventListener('click', () => { sfx('click'); act({ type: 'ready', v: !v.me.ready }); });
 }

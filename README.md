@@ -25,6 +25,23 @@ Each day has three parts:
 You can dump any item to the wholesaler at any time for a fraction of its real
 value, which is how you cut losses on a bad buy.
 
+### Running the shop
+
+- **Shelf pricing and walk-in shoppers.** Every item gets a price tag (a suggested
+  price, a little above the middle of your appraisal or the last market sale).
+  Walk-in shoppers browse your shelves throughout the buying and selling parts of
+  the day; each looks at up to three items and buys one if it's priced under
+  what they'd pay. The first shelf row is the window display and gets looked at
+  twice as often. Storefront and Salesclerk levels bring more and richer
+  browsers. In the inventory (I) you can edit any price, hold items back from
+  sale, auto-price everything, or mark everything up or down 10%.
+- **Insurance.** Choose None, Basic (pays back 50%) or Full (100%) in the office.
+  It covers overnight theft (refunds what you paid) and overnight damage (an item
+  losing a condition level, 10% chance a night). The nightly premium is a base fee
+  plus 1.5% (Basic) or 3% (Full) of what you paid for your current stock.
+- **Office sections.** The office board is split into Staff (hire and let go),
+  Upgrades (advertising, storefront, storage, security) and Insurance.
+
 ### Staying afloat
 
 - **Pawn loans.** Some morning customers ask to borrow credits against an item

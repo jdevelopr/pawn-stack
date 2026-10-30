@@ -41,6 +41,18 @@ const APPR_DET = [0, 0, 0.45, 0.7, 0.9, 1];
 export const START_CASH = 750;
 const SELLER_MS = 16000, BUYER_MS = 15000, WALK_MS = 1600, GAP_MS = 1100, EXCL_MS = 4000;
 const HARD_TIMES_CASH = 200, DOWNGRADE_REFUND = 0.3;
+// Walk-in shoppers browse your shelves during the buying and selling parts of the day.
+const BROWSE_MS = [6000, 11000];
+/** Insurance: nightly premium = base + rate x total paid value of your stock; pays `cover` of covered losses. */
+export const INSURANCE = [
+  { id: 0, name: 'None', base: 0, rate: 0, cover: 0, desc: 'No coverage.' },
+  { id: 1, name: 'Basic', base: 5, rate: 0.015, cover: 0.5, desc: 'Pays back half of what you paid for stolen items and half of overnight damage.' },
+  { id: 2, name: 'Full', base: 10, rate: 0.03, cover: 1, desc: 'Pays back everything you paid for stolen items and all overnight damage.' },
+];
+export const premiumOf = p => {
+  const I = INSURANCE[p.insurance || 0];
+  return I.id ? Math.round(I.base + I.rate * p.inv.reduce((s, i) => s + (i.paid || 0), 0)) : 0;
+};
 const DAWN_MS = 4200, NOON_MS = 3200, EVENING_MP_MS = 90000;
 export const PLAYER_COLORS = ['#e8554e', '#3fa7d6', '#f4c542', '#7bc96f'];
 
@@ -82,7 +94,10 @@ export class Sim {
   }
   static load(json) {
     const sim = new Sim(json.cfg); sim.s = json;
-    for (const p of Object.values(json.players)) { p.loans ||= []; p.memory ||= {}; }   // older saves
+    for (const p of Object.values(json.players)) {   // older saves
+      p.loans ||= []; p.memory ||= {}; p.insurance ||= 0;
+      for (const i of p.inv) if (i.price === undefined) i.price = sim.suggestPrice(p, i);
+    }
     return sim;
   }
   serialize() { return JSON.parse(JSON.stringify(this.s)); }
@@ -98,7 +113,7 @@ export class Sim {
       cash: START_CASH, inv: [], connected: true, ready: false, bankrupt: false,
       up: Object.fromEntries(UPGRADES.map(u => [u.id, 0])),
       stats: { bought: 0, sold: 0, spent: 0, earned: 0, bestFlip: null, interest: 0 },
-      loans: [], memory: {},
+      loans: [], memory: {}, insurance: 0, nextBrowse: 0,
       today: null, summary: null,
     };
     S.players[pid] = p; S.order.push(pid); this.dirty = true;
@@ -126,7 +141,7 @@ export class Sim {
     if (S.cfg.maxDays && S.day > S.cfg.maxDays) return this.finish();
     for (const p of Object.values(S.players)) {
       p.ready = false; p.summary = null;
-      p.today = { bought: [], sold: [], dumped: [], lent: [], startCash: p.cash };
+      p.today = { bought: [], sold: [], dumped: [], lent: [], walkins: [], browsers: 0, startCash: p.cash };
     }
     S.event = Math.random() < 0.6
       ? { cat: pick(CATS), mod: Math.random() < 0.65 ? 1.35 : 0.75 }
@@ -227,6 +242,7 @@ export class Sim {
         if (now >= S.phaseEnd) { S.phase = 'buy'; S.nextAt = now; this.dirty = true; }
         break;
       case 'buy': {
+        this.browse(now);
         const c = S.seller;
         if (c && !c.done && now >= c.until) this.customerLeave(c, now, say(c.prof, 'walk'));
         if ((!c || c.done) && now >= S.nextAt) {
@@ -245,6 +261,7 @@ export class Sim {
         if (now >= S.phaseEnd) { S.phase = 'sell'; S.nextAt = now; this.dirty = true; }
         break;
       case 'sell': {
+        this.browse(now);
         const b = S.buyer;
         if (b && !b.done) {
           if (now >= b.until) this.customerLeave(b, now, 'Got bored and left.');
@@ -415,6 +432,24 @@ export class Sim {
         this.dirty = true;
         return;
       }
+      case 'price': {
+        const inst = p.inv.find(i => i.uid === a.uid);
+        if (!inst) return;
+        if (a.price === null) inst.price = null;                       // held back, not on sale
+        else if (a.price === 'auto') inst.price = this.suggestPrice(p, inst);
+        else { const n = Math.floor(+a.price); if (!(n > 0)) return err('Enter a price.'); inst.price = n; }
+        this.dirty = true;
+        return;
+      }
+      case 'insure': {
+        if (S.phase !== 'evening') return err('Insurance is changed in the evening.');
+        const I = INSURANCE[a.level];
+        if (!I) return;
+        p.insurance = I.id;
+        this.toast(pid, I.id ? `${I.name} insurance active from tonight.` : 'Insurance cancelled.', 'info');
+        this.dirty = true;
+        return;
+      }
       case 'downgrade': {
         if (S.phase !== 'evening') return err('Staff and upgrades are changed in the evening.');
         const u = UP[a.id]; if (!u) return;
@@ -459,6 +494,7 @@ export class Sim {
     p.cash -= price; p.stats.bought++; p.stats.spent += price;
     this.remember(p, c.inst.id, 'paid', price, c.inst.cond);
     const inst = { ...c.inst, paid: price, day: this.s.day };
+    inst.price = this.suggestPrice(p, inst);
     p.inv.push(inst);
     p.today.bought.push({ id: inst.id, price });
     this.per(c, p.pid).msg = line;
@@ -480,6 +516,52 @@ export class Sim {
     this.s.nextAt = now + GAP_MS;
     this.log(`${p.name} lent ${cr(amount)} against ${ITEMS[c.inst.id].n}`);
     this.fx({ type: 'buy', pid: p.pid, price: amount, itemId: c.inst.id });
+    this.dirty = true;
+  }
+
+  /** Suggested shelf price: a bit above the middle of your appraisal, or the last market sale if known. */
+  suggestPrice(p, inst) {
+    const e = this.estimate(p, inst);
+    const mem = p.memory?.[inst.id]?.sale;
+    const base = mem && mem.cond === inst.cond ? mem.price : (e.lo + e.hi) / 2;
+    return Math.max(1, nice(Math.max(base * 1.1, (inst.paid || 0) * 1.1)));
+  }
+
+  /** Walk-in shoppers: each shop gets browsers on a timer; they buy a priced item if it's under what they'd pay. */
+  browse(now) {
+    for (const p of this.live()) {
+      if (!p.nextBrowse || p.nextBrowse < now - 60000) p.nextBrowse = now + rand(...BROWSE_MS);
+      if (now < p.nextBrowse) continue;
+      p.nextBrowse = now + rand(...BROWSE_MS) / (1 + 0.25 * p.up.sign);
+      p.today.browsers++;
+      const priced = p.inv.map((it, idx) => ({ it, idx })).filter(x => x.it.price != null);
+      if (!priced.length) continue;
+      // a browser looks at up to 3 items; the first shelf row (window display) gets looked at twice as often
+      const w = priced.map(x => (x.idx < 12 ? 2 : 1));
+      const mood = rand(0.75, 1.35) * (1 + 0.04 * p.up.sales + 0.03 * p.up.sign);
+      let best = null, bestGain = 0;
+      for (let k = 0; k < Math.min(3, priced.length); k++) {
+        const pickI = wpick(w);
+        const { it, idx } = priced[pickI];
+        w[pickI] = 0;
+        if (it.fake && Math.random() < 0.3) continue;                   // spotted it as fake
+        const W = genuineValue(it) * mood * this.catMod(ITEMS[it.id].cat);
+        if (it.price <= W && W - it.price >= bestGain) { best = { it, idx }; bestGain = W - it.price; }
+        if (w.every(x => !x)) break;
+      }
+      if (best) this.walkinSale(p, best.it, best.idx);
+    }
+  }
+
+  walkinSale(p, inst, slot) {
+    const price = inst.price;
+    p.inv = p.inv.filter(i => i !== inst);
+    p.cash += price; p.stats.sold++; p.stats.earned += price;
+    const profit = price - inst.paid;
+    p.today.walkins.push({ id: inst.id, price, paid: inst.paid });
+    if (!p.stats.bestFlip || profit > p.stats.bestFlip.profit) p.stats.bestFlip = { id: inst.id, profit, paid: inst.paid, price };
+    for (const x of Object.values(this.s.players)) this.remember(x, inst.id, 'sale', price, inst.cond);
+    this.fx({ type: 'walkin', pid: p.pid, price, itemId: inst.id, slot });
     this.dirty = true;
   }
 
@@ -517,14 +599,19 @@ export class Sim {
           loans.push({ id: L.inst.id, amount: L.amount, back: L.back, kind: 'repaid' });
         } else {
           // forfeited: the collateral is yours, at the price of the loan
-          p.inv.push({ ...L.inst, paid: L.amount, day: S.day });
+          const it = { ...L.inst, paid: L.amount, day: S.day };
+          it.price = this.suggestPrice(p, it);
+          p.inv.push(it);
           loans.push({ id: L.inst.id, amount: L.amount, kind: 'forfeit' });
         }
       }
       p.loans = p.loans.filter(l => l.due > S.day);
       const rent = 20 + 3 * S.day;
       const wages = UPGRADES.filter(u => u.staff).reduce((s, u) => s + p.up[u.id] * u.wage, 0);
-      p.cash -= rent + wages;
+      const premium = premiumOf(p);
+      const cover = INSURANCE[p.insurance || 0].cover;
+      p.cash -= rent + wages + premium;
+      const claims = [];
       const restored = [];
       for (let i = 0; i < p.up.restore; i++) {
         const cand = p.inv.filter(x => x.cond < 3 && !restored.includes(x.uid));
@@ -532,9 +619,17 @@ export class Sim {
         const it = cand.sort((a, b) => genuineValue(b) - genuineValue(a))[0];
         it.cond++; restored.push(it.uid);
       }
-      let stolen = null;
+      let stolen = null, damaged = null;
       if (p.inv.length && Math.random() < Math.max(0.01, 0.14 - 0.045 * p.up.security)) {
         const it = pick(p.inv); p.inv = p.inv.filter(x => x !== it); stolen = it.id;
+        if (cover) { const pay = Math.round((it.paid || 0) * cover); p.cash += pay; claims.push({ id: it.id, kind: 'theft', pay }); }
+      }
+      // overnight accidents: a dropped shelf, a dust leak, a curious Glorp
+      const fragile = p.inv.filter(x => x.cond > 0);
+      if (fragile.length && Math.random() < 0.1) {
+        const it = pick(fragile), before = trueValue(it);
+        it.cond--; damaged = { id: it.id, cond: it.cond };
+        if (cover) { const pay = Math.round((before - trueValue(it)) * cover); p.cash += pay; claims.push({ id: it.id, kind: 'damage', pay }); }
       }
       const forced = [];
       while (p.cash < 0 && p.inv.length) {
@@ -544,7 +639,7 @@ export class Sim {
       }
       if (p.cash < 0) { p.bankrupt = true; p.ready = true; }
       p.summary = {
-        ...p.today, rent, wages, stolen, forced, loans, cash: p.cash,
+        ...p.today, rent, wages, premium, claims, damaged, stolen, forced, loans, cash: p.cash,
         restored: restored.map(uid => p.inv.find(i => i.uid === uid)).filter(Boolean).map(i => ({ id: i.id, cond: i.cond })),
       };
     }
@@ -586,7 +681,8 @@ export class Sim {
       me: {
         pid, name: p.name, color: p.color, cash: p.cash, cap: capOf(p), up: p.up,
         ready: p.ready, bankrupt: p.bankrupt, summary: p.summary, stats: p.stats,
-        inv: p.inv.map(i => ({ uid: i.uid, id: i.id, cond: i.cond, paid: i.paid, day: i.day, est: this.estimate(p, i), mem: p.memory[i.id] || null })),
+        inv: p.inv.map(i => ({ uid: i.uid, id: i.id, cond: i.cond, paid: i.paid, day: i.day, price: i.price ?? null, est: this.estimate(p, i), mem: p.memory[i.id] || null })),
+        insurance: p.insurance || 0, premium: premiumOf(p),
         loans: p.loans.map(l => ({ id: l.id, itemId: l.inst.id, cond: l.inst.cond, amount: l.amount, back: l.back, rate: l.rate, due: l.due, est: this.estimate(p, l.inst) })),
       },
       players: S.order.map(id => {
