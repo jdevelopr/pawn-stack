@@ -277,3 +277,92 @@ input[type=number] { -moz-appearance: textfield; }
 .upg-btns .btn { min-width: 120px; }
 
 .icon { object-fit: none; }
+
+/* ---------------------------------------------------------------------------
+   Compact in-game UI (inside #ui). Smaller type and spacing, and panels never
+   scroll: fitPanels() scales a panel down via --k if it is taller than the room.
+   --------------------------------------------------------------------------- */
+#ui .chip { font-size: 8px; padding: 5px 7px 6px; box-shadow: 0 0 0 2px var(--ink); }
+#ui #hud { padding: 6px; }
+#ui .chip.cash { min-width: 72px; }
+#ui #rivals, #ui #event-banner { top: 34px; }
+#ui #event-banner, #ui .rival { font-size: 16px; }
+#ui #log { font-size: 15px; }
+#ui #keys { font-size: 14px; }
+#ui .toast { font-size: 17px; padding: 3px 10px; }
+#ui #toasts { top: 40px; }
+#ui #prompt { font-size: 8px; }
+
+#ui .panel { padding: 10px 12px; border-width: 3px; box-shadow: inset -3px -3px 0 var(--panel-d), inset 3px 3px 0 var(--panel-l), 0 5px 0 rgba(0,0,0,.35); }
+#ui .panel.side {
+  width: 280px; right: 6px; top: 34px; max-height: none; overflow: visible;
+  transform: scale(var(--k, 1)); transform-origin: top right; animation: fade-in var(--t-base) ease-out;
+}
+#ui .panel.center {
+  left: 50%; top: 34px; width: 600px; max-height: none; overflow: visible;
+  transform: translateX(-50%) scale(var(--k, 1)); transform-origin: top center; animation: fade-in var(--t-base) ease-out;
+}
+#ui h2 { font-size: 12px; margin: 0 0 8px; }
+#ui h3 { font-size: 8px; margin: 8px 0 3px; }
+#ui .lbl { font-size: 8px; margin: 6px 0 2px; }
+#ui .close-x { top: 6px; right: 6px; width: 22px; height: 22px; font-size: 8px; }
+#ui .btn { font-size: 8px; padding: 7px 8px 9px; box-shadow: inset -3px -3px 0 #a8b4cc, inset 3px 3px 0 #ffffff; }
+#ui .btn.primary { box-shadow: inset -3px -3px 0 #c47a1e, inset 3px 3px 0 #ffd9a0; }
+#ui .btn.good { box-shadow: inset -3px -3px 0 #4fae3a, inset 3px 3px 0 #c8ffb4; }
+#ui .btn.bad { box-shadow: inset -3px -3px 0 #b8403a, inset 3px 3px 0 #ffb0a8; }
+#ui .btn.small { font-size: 8px; padding: 6px 7px 8px; }
+#ui .row { gap: 6px; margin-top: 6px; }
+#ui .field { font-size: 19px; padding: 3px 8px; }
+#ui .who { padding: 4px 6px; margin: 0 0 6px; }
+#ui .who-name { font-size: 8px; }
+#ui .who-tell { font-size: 15px; line-height: 1; }
+#ui .item-head { gap: 8px; }
+#ui .icon { width: 56px; height: 56px; }
+#ui .item-name { font-size: 20px; }
+#ui .meta, #ui .mem, #ui .loan-terms, #ui .hint { font-size: 15px; line-height: 1; margin-top: 2px; }
+#ui .tier, #ui .fake { font-size: 8px; }
+#ui .kv { font-size: 17px; margin-top: 2px; }
+#ui .big-ask { font-size: 14px; }
+#ui .timer { height: 5px; margin-top: 6px; }
+#ui .say { font-size: 16px; margin-top: 6px; padding: 3px 8px; }
+#ui .strikes { font-size: 15px; margin-top: 4px; }
+#ui .strikes i { width: 9px; height: 9px; }
+#ui .excl { font-size: 15px; margin-top: 2px; }
+#ui .feed { font-size: 14px; margin-top: 4px; line-height: 1; }
+#ui .offer-row { margin-top: 6px; gap: 4px; }
+#ui .offer-row .field { font-size: 20px; }
+#ui .quick { margin-top: 4px; gap: 4px; }
+#ui .quick .btn { font-size: 8px; padding: 5px 3px 6px; }
+
+#ui .pick-grid { display: grid; grid-template-columns: repeat(auto-fill, 36px); gap: 4px; margin-top: 6px; }
+#ui .pick-tile { width: 36px; height: 36px; padding: 0; border: 0; cursor: pointer; background: var(--panel-d); box-shadow: inset 2px 2px 0 #120d1a; display: grid; place-items: center; }
+#ui .pick-tile img { width: 28px; height: 28px; image-rendering: pixelated; display: block; }
+#ui .pick-tile.on { background: #4a3a6a; box-shadow: inset 0 0 0 2px var(--gold); }
+#ui .pick-tile:focus-visible { outline: 2px solid var(--gold); }
+#ui .pick-info { font-size: 15px; line-height: 1; margin-top: 6px; color: var(--dim); }
+#ui .pick-info .nm { color: var(--cream); font-size: 17px; }
+
+#ui .inv-grid { grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 6px; }
+#ui .inv-card { padding: 4px; grid-template-columns: 30px 1fr auto; gap: 0 6px; align-items: center; }
+#ui .inv-card .icon.sm { width: 30px; height: 30px; padding: 0; }
+#ui .inv-txt { min-width: 0; }
+#ui .inv-txt .nm { font-size: 15px; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ui .inv-txt .meta { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0; }
+#ui .inv-card .btn { grid-column: auto; font-size: 8px; padding: 4px 4px 5px; }
+#ui .empty { font-size: 16px; margin: 6px 0; }
+
+#ui .upg-list { gap: 4px; margin-top: 6px; }
+#ui .upg { padding: 5px 8px; gap: 0 8px; }
+#ui .upg .nm { font-size: 8px; gap: 6px; }
+#ui .upg .ds { font-size: 14px; line-height: 1; }
+#ui .upg-btns { gap: 3px; grid-auto-flow: column; }
+#ui .upg-btns .btn { min-width: 0; font-size: 8px; padding: 5px 6px 7px; }
+#ui .pips i { width: 6px; height: 6px; }
+#ui .staff { font-size: 8px; }
+
+#ui .sum-grid { gap: 4px 16px; }
+#ui .line { font-size: 15px; line-height: 1.05; }
+#ui .total { font-size: 9px; margin-top: 8px; }
+
+#ui #card-title { font-size: 34px; }
+#ui #card-sub { font-size: 22px; margin-top: 12px; }

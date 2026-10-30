@@ -330,13 +330,14 @@ function fit() {
   st.style.width = W * PX * s + 'px'; st.style.height = H * PX * s + 'px';
   // Scale the in-game UI with the game so it covers the same share of the screen as it did
   // before the art resolution doubled: compare against the old 384x216 canvas's whole-number fit.
-  const oldS = Math.max(1, Math.floor(Math.min(innerWidth / W, innerHeight / H)));
-  const z = Math.min(1, (W * PX * s) / (W * oldS));
+  // 0.8 on a 768-wide game, 0.9 at 1536 and above. Panels also shrink to fit (see fitPanels).
+  const z = Math.max(0.8, Math.min(0.9, (W * PX * s) / 1536 * 0.9));
   const ui = $('#ui');
   if (ui) {
     ui.style.zoom = z;
     ui.style.width = (W * PX * s) / z + 'px'; ui.style.height = (H * PX * s) / z + 'px';
   }
+  fitPanels();
   document.documentElement.style.setProperty('--s', s);
 }
 addEventListener('resize', () => { fit(); drawBackdrop(); });
@@ -737,6 +738,7 @@ function ui(t) {
   if (panel === 'eve') renderEvening();
   if (panel === 'inv') renderInv();
   if (panel === 'upg') renderUpg();
+  fitPanels();
   dirtyUI = false;
 }
 
@@ -777,6 +779,19 @@ function shakeSay(bad) {
 }
 
 /* -------------------------------------------------------------- panels --- */
+/** Shrink any open panel that is taller than the space below it, so nothing ever scrolls. */
+function fitPanels() {
+  const ui = document.getElementById('ui');
+  if (!ui) return;
+  for (const el of document.querySelectorAll('#ui .panel')) {
+    if (el.hidden) continue;
+    const avail = ui.clientHeight - el.offsetTop - 6;
+    const k = Math.max(0.45, Math.min(1, avail / el.offsetHeight));
+    const cur = +el.style.getPropertyValue('--k') || 1;
+    if (Math.abs(cur - k) > 0.005) el.style.setProperty('--k', k.toFixed(3));
+  }
+}
+
 function openPanel(name) {
   closePanel();
   panel = name;
@@ -897,11 +912,9 @@ function sellHtml(v, c) {
     <div class="excl"></div>
     <div class="say" data-p="say">${esc(c.st.msg || '')}</div>
     ${strikesHtml(c.st.strikes, c.lim)}
-    ${el.length ? `<div class="pick-list">${el.map(i => `
-      <button class="pick ${i.uid === pickUid[c.id] ? 'on' : ''}" data-uid="${i.uid}">
-        <img class="icon sm" src="${itemIcon(i.id, 3)}" alt="">
-        <span><span class="nm">${esc(ITEMS[i.id].n)}</span><br>${COND[i.cond].n} &middot; paid ${money(i.paid)} &middot; est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}${i.mem?.sale ? `<br><span class="mem-dim">Last sold ${money(i.mem.sale.price)} (${COND[i.mem.sale.cond].n})</span>` : ''}</span>
-      </button>`).join('')}</div>
+    ${el.length ? `<div class="pick-grid">${el.map(i => `
+      <button class="pick-tile ${i.uid === pickUid[c.id] ? 'on' : ''}" data-uid="${i.uid}" title="${esc(ITEMS[i.id].n)}"><img src="${itemIcon(i.id, 2)}" alt="${esc(ITEMS[i.id].n)}"></button>`).join('')}</div>
+      ${sel ? `<div class="pick-info"><span class="nm">${esc(ITEMS[sel.id].n)}</span><br>${COND[sel.cond].n} &middot; paid ${money(sel.paid)} &middot; est ${estTxt(sel.est)}${sel.est.fake ? ' <span class="fake">FAKE?</span>' : ''}${sel.mem?.sale ? `<br><span class="mem-dim">Last sold ${money(sel.mem.sale.price)} (${COND[sel.mem.sale.cond].n})</span>` : ''}</div>` : ''}
       <div class="offer-row">
         <button class="btn small" data-step="-1">-</button>
         <input id="price-in" class="field" type="number" min="1" value="${esc(def)}" aria-label="Your price">
@@ -939,7 +952,7 @@ function wireDeal(v, c) {
   el.querySelector('#pass-btn')?.addEventListener('click', () => { sfx('click'); act({ type: 'pass' }); });
   el.querySelector('#pitch-btn')?.addEventListener('click', () => act({ type: 'pitch', uid: pickUid[c.id], price: +inp.value }));
   el.querySelector('#counter-btn')?.addEventListener('click', () => act({ type: 'takeCounter' }));
-  el.querySelectorAll('.pick').forEach(b => b.addEventListener('click', () => { pickUid[c.id] = b.dataset.uid; sfx('tick'); dealKey = ''; renderDeal(); }));
+  el.querySelectorAll('.pick-tile').forEach(b => b.addEventListener('click', () => { pickUid[c.id] = b.dataset.uid; sfx('tick'); dealKey = ''; renderDeal(); }));
 }
 
 /* inventory */
@@ -953,26 +966,25 @@ function renderInv(force) {
   invKey = key;
   el.innerHTML = `${closeBtn}<h2>Inventory ${inv.length}/${v.me.cap}</h2>
     ${inv.length ? `<div class="inv-grid">${inv.map((i, n) => `
-      <div class="inv-card" style="--i:${n}">
-        <img class="icon sm" src="${itemIcon(i.id, 3)}" alt="">
-        <div><div class="nm">${esc(ITEMS[i.id].n)}</div>
-        <div class="meta">${COND[i.cond].n} &middot; ${tierTag(i.est.tier)}</div>
-        <div class="meta">Paid ${money(i.paid)} &middot; est ${estTxt(i.est)}</div>
-        ${i.est.fake ? '<div class="fake">LIKELY FAKE</div>' : ''}${memHtml(i.mem)}</div>
-        <button class="btn" data-dump="${i.uid}">Dump to wholesaler</button>
+      <div class="inv-card" style="--i:${n}" title="${esc(ITEMS[i.id].n)}">
+        <img class="icon sm" src="${itemIcon(i.id, 2)}" alt="">
+        <div class="inv-txt"><div class="nm">${esc(ITEMS[i.id].n)}</div>
+        <div class="meta">${COND[i.cond].n} &middot; paid ${money(i.paid)}</div>
+        <div class="meta">est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</div>
+        ${i.mem?.sale ? `<div class="meta mem-dim">sold ${money(i.mem.sale.price)} (${COND[i.mem.sale.cond].n})</div>` : ''}</div>
+        <button class="btn small" data-dump="${i.uid}" title="Dump to wholesaler">Dump</button>
       </div>`).join('')}</div>` : '<div class="empty">Nothing on the shelves.</div>'}
     ${loans.length ? `<h3>VAULT: PAWN LOANS</h3><div class="inv-grid">${loans.map(l => `
-      <div class="inv-card">
-        <img class="icon sm" src="${itemIcon(l.itemId, 3)}" alt="">
-        <div><div class="nm">${esc(ITEMS[l.itemId].n)}</div>
-        <div class="meta">Lent ${money(l.amount)} &middot; repays ${money(l.back)}</div>
-        <div class="meta">Due end of sol ${l.due} &middot; est ${estTxt(l.est)}</div>
-        ${l.est.fake ? '<div class="fake">LIKELY FAKE</div>' : ''}</div>
+      <div class="inv-card" title="${esc(ITEMS[l.itemId].n)}">
+        <img class="icon sm" src="${itemIcon(l.itemId, 2)}" alt="">
+        <div class="inv-txt"><div class="nm">${esc(ITEMS[l.itemId].n)}</div>
+        <div class="meta">lent ${money(l.amount)} &middot; back ${money(l.back)}</div>
+        <div class="meta">due sol ${l.due}${l.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</div></div>
       </div>`).join('')}</div>` : ''}`;
   el.querySelector('[data-close]').addEventListener('click', closePanel);
   el.querySelectorAll('[data-dump]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.confirm) { act({ type: 'dump', uid: b.dataset.dump }); }
-    else { b.dataset.confirm = '1'; b.textContent = 'Click again to dump'; b.classList.add('bad'); }
+    else { b.dataset.confirm = '1'; b.textContent = 'Sure?'; b.classList.add('bad'); }
   }));
 }
 
