@@ -10,7 +10,7 @@ import { Sim, UPGRADES, COND, capOf } from './sim.js';
 import { ITEMS, TIERS, itemIcon } from './items.js';
 import { createHost, createClient, clientId, joinUrl, roomFromUrl } from './net.js';
 import {
-  W, H, WORLD_W, FLOOR, ZONES, COUNTER_X, CUSTOMER_X,
+  W, H, PX, WORLD_W, FLOOR, ZONES, COUNTER_X, CUSTOMER_X,
   drawScene, drawCounterFront, drawPerson, drawNight, lookFromSeed, bubble, pixelTextOutlined, textW,
   drawChar,
 } from './art.js';
@@ -324,9 +324,10 @@ function autosave() {
 let scale = 3;
 const SCALE = () => scale;
 function fit() {
-  const s = scale = Math.max(1, Math.floor(Math.min(innerWidth / W, innerHeight / H)));
+  // the canvas is 768x432 (2x art); scale it by a whole number only, so pixels stay even
+  const s = scale = Math.max(1, Math.floor(Math.min(innerWidth / (W * PX), innerHeight / (H * PX))));
   const st = $('#stage');
-  st.style.width = W * s + 'px'; st.style.height = H * s + 'px';
+  st.style.width = W * PX * s + 'px'; st.style.height = H * PX * s + 'px';
   document.documentElement.style.setProperty('--s', s);
 }
 addEventListener('resize', () => { fit(); drawBackdrop(); });
@@ -531,9 +532,9 @@ function burst(x, y, text, col, coins = 8) {
 
 function render(t) {
   const v = app.view;
-  const c = Math.round(cam);
+  const c = Math.round(cam * PX);          // camera in fine (2x) pixels
   const me = v?.me;
-  ctx.clearRect(0, 0, W, H);
+  ctx.clearRect(0, 0, W * PX, H * PX);
   drawScene(ctx, c, { phase: v?.phase, inv: me?.inv || [], up: me?.up, signLevel: me?.up.sign || 0, t });
 
   ctx.save(); ctx.translate(-c, 0);
@@ -571,21 +572,27 @@ function render(t) {
   // particles
   ctx.save(); ctx.translate(-c, 0);
   for (const p of parts) {
-    if (p.text) pixelTextOutlined(ctx, p.text, Math.round(p.x - textW(p.text) / 2), Math.round(p.y), p.col);
-    else { ctx.fillStyle = '#211a2b'; ctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 4, 4); ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); }
+    const fx = Math.round(p.x * PX), fy = Math.round(p.y * PX);
+    if (p.text) pixelTextOutlined(ctx, p.text, fx - Math.round(textW(p.text) / 2), fy, p.col);
+    else {
+      ctx.fillStyle = '#7a5410'; ctx.fillRect(fx - 1, fy - 1, 6, 6);
+      ctx.fillStyle = p.col; ctx.fillRect(fx, fy, 4, 4);
+      ctx.fillStyle = '#fff2b0'; ctx.fillRect(fx, fy, 2, 1);
+    }
   }
   // zone label above keeper
   const z = zoneAt(keeper.x);
   if (z && !panel && !(z === 'counter' && cust && !cust.done)) {
     const label = `E: ${ZONES[z].label}`;
-    pixelTextOutlined(ctx, label, Math.round(keeper.x - textW(label) / 2), FLOOR - 46, '#f2c14e');
+    const lx = Math.max(c + 4, Math.min(c + W * PX - textW(label) - 4, Math.round(keeper.x * PX - textW(label) / 2)));
+    pixelTextOutlined(ctx, label, lx, FLOOR * PX - 92, '#f2c14e');
   }
   ctx.restore();
 
   // off-screen customer arrow
   if (cust && !cust.done && z !== 'counter') {
-    const sx = CUSTOMER_X - c;
-    if (sx < 0 || sx > W) { pixelTextOutlined(ctx, '< CUSTOMER', 6, 120, '#f2c14e'); }
+    const sx = CUSTOMER_X * PX - c;
+    if (sx < 0 || sx > W * PX) { pixelTextOutlined(ctx, '< CUSTOMER', 12, 240, '#f2c14e'); }
   }
 }
 

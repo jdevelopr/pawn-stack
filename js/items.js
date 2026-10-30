@@ -1301,7 +1301,8 @@ function shade(hex, f) {
   return `rgb(${c(r)},${c(g)},${c(b)})`;
 }
 
-export const SPRITE_SIZE = 14;
+export const SPRITE_SIZE = 14;   // source grid size (logical pixels)
+export const ITEM_PX = 28;       // drawn size at the 2x art resolution
 const parsed = {};
 function grid(name) {
   if (parsed[name]) return parsed[name];
@@ -1309,13 +1310,58 @@ function grid(name) {
   return (parsed[name] = rows);
 }
 
+/** Pad a sprite grid into a 14x14 box (centered, bottom-aligned). */
+function boxed(name) {
+  const g = grid(name);
+  const w = Math.max(...g.map(r => r.length));
+  const ox = Math.round((SPRITE_SIZE - w) / 2), oy = SPRITE_SIZE - g.length;
+  const out = Array.from({ length: SPRITE_SIZE }, () => Array(SPRITE_SIZE).fill('.'));
+  g.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== ' ') out[oy + r][ox + c] = ch; }));
+  return out;
+}
+
+/** Scale2x (EPX): doubles a pixel-art grid while rounding off diagonal stair-steps. */
+function scale2x(g) {
+  const h = g.length, w = g[0].length;
+  const at = (r, c) => (r < 0 || c < 0 || r >= h || c >= w ? '.' : g[r][c]);
+  const out = Array.from({ length: h * 2 }, () => Array(w * 2).fill('.'));
+  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
+    const P = g[r][c], A = at(r - 1, c), B = at(r, c + 1), C = at(r, c - 1), D = at(r + 1, c);
+    let e0 = P, e1 = P, e2 = P, e3 = P;
+    if (C === A && C !== D && A !== B) e0 = A;
+    if (A === B && A !== C && B !== D) e1 = B;
+    if (D === C && D !== B && C !== A) e2 = C;
+    if (B === D && B !== A && D !== C) e3 = D;
+    out[r * 2][c * 2] = e0; out[r * 2][c * 2 + 1] = e1; out[r * 2 + 1][c * 2] = e2; out[r * 2 + 1][c * 2 + 1] = e3;
+  }
+  return out;
+}
+
+const big2x = {};
+function grid2x(name) {
+  if (big2x[name]) return big2x[name];
+  const g = scale2x(boxed(name));
+  const N = g.length;
+  const isFill = ch => ch !== '.' && ch !== 'o';
+  // Thin the doubled outline back to 1px: keep only outline pixels that touch a fill pixel.
+  const thin = g.map((row, r) => row.map((ch, c) => {
+    if (ch !== 'o') return ch;
+    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+      const n = g[r + dr]?.[c + dc];
+      if (n && isFill(n)) return 'o';
+    }
+    return '.';
+  }));
+  return (big2x[name] = thin);
+}
+
 function hexRgb(hex) {
   if (hex.startsWith('rgb')) return hex.match(/\d+/g).map(Number);
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
-function tone(hex, f, hueShift = 0) {
-  // Darker shades drift toward cool purple, highlights toward warm cream: a classic pixel-art ramp.
+function tone(hex, f) {
+  // Shadows drift toward cool purple, highlights toward warm cream: a classic pixel-art ramp.
   let [r, g, b] = hexRgb(hex);
   if (f < 1) { r = r * f + 30 * (1 - f) * 0.4; g = g * f + 18 * (1 - f) * 0.4; b = b * f + 60 * (1 - f) * 0.6; }
   else { const k = f - 1; r += (255 - r) * k; g += (250 - g) * k; b += (225 - b) * k * 0.85; }
@@ -1325,61 +1371,73 @@ function tone(hex, f, hueShift = 0) {
 
 const FILL = new Set(['a', 'A', 'c', 'C', 'g', 'k', 'w']);
 const spriteCache = new Map();
-/** Render an item once to a 14x14 canvas with automatic top-left lighting and soft outlines. */
+/** Render an item once to a 28x28 canvas: Scale2x shape, 5-step lighting from the top-left, tinted outline. */
 function itemCanvas(itemId) {
   if (spriteCache.has(itemId)) return spriteCache.get(itemId);
   const it = ITEMS[itemId];
-  const g = grid(it.sp);
-  const w = Math.max(...g.map(r => r.length));
-  const ox = Math.round((SPRITE_SIZE - w) / 2), oy = SPRITE_SIZE - g.length;
+  const g = grid2x(it.sp);
+  const N = g.length;
   const base = { a: it.a, A: tone(it.a, 0.68), c: it.b, C: tone(it.b, 0.68), w: '#f6f1e6', g: '#a7adba', k: '#3a3348' };
   const at = (r, c) => (g[r] && g[r][c]) || '.';
+  const fill = (r, c) => FILL.has(at(r, c));
   const cv = document.createElement('canvas');
-  cv.width = cv.height = SPRITE_SIZE;
+  cv.width = cv.height = N;
   const x = cv.getContext('2d');
-  for (let r = 0; r < g.length; r++) {
-    for (let c = 0; c < g[r].length; c++) {
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
       const ch = g[r][c];
-      if (ch === '.' || ch === ' ') continue;
+      if (ch === '.') continue;
       let col;
       if (ch === 'o') {
-        // selective outline: tint the outline by the darkest neighbouring fill
-        const nb = [at(r - 1, c), at(r + 1, c), at(r, c - 1), at(r, c + 1)].find(n => n === 'a' || n === 'c' || n === 'A' || n === 'C');
-        col = nb ? tone(base[nb.toLowerCase()], 0.28) : '#1e1828';
+        const nb = [at(r - 1, c), at(r + 1, c), at(r, c - 1), at(r, c + 1)].find(n => 'aAcC'.includes(n) && n !== '.');
+        col = nb ? tone(base[nb.toLowerCase()], 0.3) : '#1e1828';
       } else {
-        col = base[ch];
-        if (!col) continue;
-        if (ch === 'a' || ch === 'c' || ch === 'g' || ch === 'k') {
-          const up = at(r - 1, c), dn = at(r + 1, c), rt = at(r, c + 1);
-          const src = ch === 'g' ? '#a7adba' : ch === 'k' ? '#3a3348' : base[ch];
-          if (!FILL.has(up)) col = tone(src, 1.22);
-          else if (!FILL.has(dn) || !FILL.has(rt)) col = tone(src, 0.8);
+        const src = base[ch];
+        if (!src) continue;
+        col = src;
+        if (ch !== 'w') {
+          // light from the top-left: two highlight steps on top edges, two shade steps on bottom/right
+          if (!fill(r - 1, c) || !fill(r, c - 1) && !fill(r - 1, c - 1)) col = tone(src, 1.3);
+          else if (!fill(r - 2, c)) col = tone(src, 1.12);
+          else if (!fill(r + 1, c) || !fill(r, c + 1)) col = tone(src, 0.74);
+          else if (!fill(r + 2, c) || !fill(r, c + 2)) col = tone(src, 0.88);
+          // a small specular glint near the top-left of large fills
+          if (ch === 'a' || ch === 'c') {
+            if (fill(r - 1, c) && fill(r, c - 1) && !fill(r - 2, c - 1) && fill(r + 2, c + 2) && (r + c) % 5 === 0) col = tone(src, 1.5);
+          }
         }
       }
       x.fillStyle = col;
-      x.fillRect(ox + c, oy + r, 1, 1);
+      x.fillRect(c, r, 1, 1);
     }
   }
   spriteCache.set(itemId, cv);
   return cv;
 }
 
-/** Draw item sprite at integer (x,y) top-left in a 14x14 box, bottom-aligned. */
+/** Draw a 28x28 item sprite with its top-left at (x, y) in 2x art pixels. */
 export function drawItem(ctx, itemId, x, y) {
   ctx.drawImage(itemCanvas(itemId), Math.round(x), Math.round(y));
 }
 
 const iconCache = new Map();
-/** PNG data URL of an item sprite, scaled by an integer factor for DOM use. */
+/**
+ * PNG data URL of an item sprite for the DOM. `scale` is relative to the old 14px grid
+ * (4 = 56px, 3 = 42px). Sizes that aren't whole multiples of 28 render at 1x, centered,
+ * so pixels stay even.
+ */
 export function itemIcon(itemId, scale = 4) {
   const key = itemId + ':' + scale;
   if (iconCache.has(key)) return iconCache.get(key);
   const c = itemCanvas(itemId);
+  const size = SPRITE_SIZE * scale;
+  const k = Math.max(1, Math.floor(size / ITEM_PX));
   const big = document.createElement('canvas');
-  big.width = big.height = SPRITE_SIZE * scale;
+  big.width = big.height = size;
   const bx = big.getContext('2d');
   bx.imageSmoothingEnabled = false;
-  bx.drawImage(c, 0, 0, big.width, big.height);
+  const d = ITEM_PX * k, o = Math.floor((size - d) / 2);
+  bx.drawImage(c, o, o, d, d);
   const url = big.toDataURL();
   iconCache.set(key, url);
   return url;

@@ -116,9 +116,12 @@ js/sound.js       WebAudio sound effects
 amplify.yml       AWS Amplify config (no build)
 ```
 
-The game canvas is 384x216 and is scaled by a whole number to fit the window,
-so every pixel lands on the grid. Characters have no black outlines; their
-edges are shaded from their own colors.
+The game is laid out on a 384x216 grid but drawn on a 768x432 canvas (2x art
+detail), which CSS scales by a whole number to fit the window, so every pixel
+stays even. On windows smaller than 1536x864 it shows at 1x (768x432).
+Characters have no black outlines; their edges are shaded from their own
+colors. Items are 14x14 source sprites upscaled with Scale2x and re-shaded at
+28x28.
 
 ## Run locally
 
