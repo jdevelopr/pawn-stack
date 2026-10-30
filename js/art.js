@@ -141,7 +141,7 @@ export function drawPerson(ctx, x, y, L, frame = 0, dir = 1, extra = {}) {
   r(f ? 11 : 2, 6, 1, 2, L.skin); r(f ? 12 : 1, 6, 1, 2, O);
   r(f ? 7 : 5, 9, 3, 1, sk);
   if (extra.monocle) { r(ex - 1, 4, 3, 1, '#f2c14e'); r(ex - 1, 7, 3, 1, '#f2c14e'); r(ex - 1, 5, 1, 2, '#f2c14e'); r(ex + 1, 5, 1, 2, '#f2c14e'); r(ex + 1, 8, 1, 4, '#f2c14e'); }
-  if (extra.glasses) { r(ex - 1, 5, 3, 2, '#2a2230'); }
+  if (extra.glasses) { r(ex - 1, 5, 3, 1, '#2a2230'); r(ex - 1, 6, 2, 1, '#2a2230'); r(f ? ex - 3 : ex + 2, 5, 2, 1, '#2a2230'); }
   const hat = extra.hat || L.hat;
   if (hat) {
     r(3, -3, 8, 5, O); r(4, -2, 6, 3, hat);
@@ -211,6 +211,7 @@ export function drawScene(ctx, cam, S) {
     rect(ctx, mx + m.step, FLOOR - m.h, m.w - m.step * 2, m.h, mesa);
     rect(ctx, mx, FLOOR - m.h + m.step, m.w, m.h - m.step, mesa);
     rect(ctx, mx, FLOOR - m.h + m.step + 6, m.w, 2, mesaD);
+    rect(ctx, mx + m.step, FLOOR - m.h, m.w - m.step * 2, 1, night ? '#4a3048' : phase === 'sell' ? '#a87070' : '#d07a58');
   }
   // colony domes, parallax 0.55
   const p2 = Math.round(cam * 0.55);
@@ -272,8 +273,20 @@ export function drawScene(ctx, cam, S) {
   rect(ctx, 192, 136, 18, 4, '#2a2d38'); rect(ctx, 198, 137, 6, 2, night ? '#6ef06e' : '#3a8a3a');
   // porthole behind the counter
   disc(ctx, 244, 62, 21, O); disc(ctx, 244, 62, 19, '#8f949e'); disc(ctx, 244, 62, 16, O); disc(ctx, 244, 62, 15, sky[2]);
-  if (!night) { rect(ctx, 230, 66, 28, 11, mesa); rect(ctx, 236, 62, 14, 4, mesa); } else { rect(ctx, 238, 54, 1, 1, '#fff6d8'); rect(ctx, 250, 60, 1, 1, '#fff6d8'); rect(ctx, 242, 70, 2, 2, '#c9b8a0'); }
-  rect(ctx, 234, 50, 3, 1, '#e8f4ff'); rect(ctx, 233, 51, 1, 2, '#e8f4ff');
+  {
+    // view through the glass, clipped row by row to the 15px circle
+    const pr = 15, pcx = 244, pcy = 62;
+    const ground = night ? '#3a2438' : mesa, groundD = night ? '#2a1a2a' : mesaD;
+    for (let dy = -pr; dy <= pr; dy++) {
+      const hw = Math.floor(Math.sqrt(pr * pr - dy * dy));
+      const y = pcy + dy, x0 = pcx - hw, x1 = pcx + hw;          // inclusive span inside the glass
+      const span = (a, b, c) => { const l = Math.max(a, x0), rr = Math.min(b, x1); if (rr >= l) rect(ctx, l, y, rr - l + 1, 1, c); };
+      if (y >= pcy + 4) span(x0, x1, y >= pcy + 9 ? groundD : ground);       // plain
+      else if (y >= pcy - 1) span(pcx - 7, pcx + 5, ground);                // mesa
+      else if (y >= pcy - 3) span(pcx - 5, pcx + 3, ground);                // mesa top
+    }
+    if (night) { rect(ctx, 238, 52, 1, 1, '#fff6d8'); rect(ctx, 250, 56, 1, 1, '#fff6d8'); rect(ctx, 247, 50, 1, 1, '#a0d8ff'); }
+  }
   for (const [bx, by] of [[244, 42], [264, 62], [244, 82], [224, 62]]) rect(ctx, bx - 1, by - 1, 2, 2, '#c9ced8');
   // strip lights
   for (const lx of [300, 470, 640, 860]) {
@@ -281,8 +294,7 @@ export function drawScene(ctx, cam, S) {
     rect(ctx, lx - 12, 18, 24, 2, night ? '#bff8f0' : '#e8f4ff');
 
   }
-  // office bulkhead
-  rect(ctx, 786, 14, 8, 34, '#2c3546'); rect(ctx, 786, 48, 8, 2, '#f2c14e');
+
 
   drawShelves(ctx, S.inv || [], night);
 
@@ -344,11 +356,13 @@ for (const by of [112, 146, 180]) for (const ux of [370, 450, 530, 610]) for (co
 
 function drawShelves(ctx, inv, night) {
   for (const ux of [370, 450, 530, 610]) {
-    rect(ctx, ux, 78, 3, 106, '#2a2d38'); rect(ctx, ux + 65, 78, 3, 106, '#2a2d38');
-    rect(ctx, ux + 3, 78, 62, 106, '#252d3c');
-    for (const by of [112, 146]) { rect(ctx, ux, by, 68, 4, '#8f949e'); rect(ctx, ux, by + 3, 68, 1, night ? '#4fe0d0' : '#6b6f7a'); }
-    rect(ctx, ux, 180, 68, 4, '#8f949e');
-    rect(ctx, ux - 2, 74, 72, 4, '#8f949e'); rect(ctx, ux - 2, 77, 72, 1, '#ff6f61');
+    rect(ctx, ux + 3, 78, 62, 106, '#344158');
+    for (const by of [112, 146, 180]) rect(ctx, ux + 3, by - 2, 62, 2, '#2c3546');   // shadow under each board's load
+    rect(ctx, ux, 76, 3, 108, '#6b6f7a'); rect(ctx, ux + 65, 76, 3, 108, '#6b6f7a');
+    rect(ctx, ux, 76, 1, 108, '#9aa0ad'); rect(ctx, ux + 65, 76, 1, 108, '#9aa0ad');
+    for (const by of [112, 146]) { rect(ctx, ux, by, 68, 3, '#9aa0ad'); rect(ctx, ux, by, 68, 1, '#c9ced8'); rect(ctx, ux, by + 3, 68, 1, night ? '#4fe0d0' : '#4a4d58'); }
+    rect(ctx, ux, 180, 68, 4, '#9aa0ad'); rect(ctx, ux, 180, 68, 1, '#c9ced8');
+    rect(ctx, ux - 1, 74, 70, 3, '#9aa0ad'); rect(ctx, ux - 1, 74, 70, 1, '#c9ced8'); rect(ctx, ux - 1, 77, 70, 1, '#ff6f61');
   }
   inv.slice(0, SHELF_SLOTS.length).forEach((it, i) => {
     const [x, y] = SHELF_SLOTS[i];
@@ -417,15 +431,20 @@ export function drawGrey(ctx, x, y, L, frame = 0, dir = 1, extra = {}) {
   r(3, 15, 9, 13, O); r(4, 16, 7, 11, robe); r(4, 22, 7, 1, '#ffb347'); r(f ? 4 : 10, 16, 1, 11, shadeHex(robe, 0.75));
   const ax = (f ? 8 : 5) + (frame === 1 ? 1 : frame === 2 ? -1 : 0);
   r(ax - 1, 16, 3, 11, O); r(ax, 17, 1, 9, sk); r(ax - 1, 26, 3, 1, skin);
-  // head
-  r(1, 0, 13, 12, O); r(0, 2, 15, 7, O); r(3, 11, 9, 3, O); r(5, 13, 5, 2, O);
-  r(2, 1, 11, 10, skin); r(1, 3, 13, 5, skin); r(4, 11, 7, 2, skin); r(6, 13, 3, 1, sk);
-  r(3, 1, 6, 1, shadeHex(skin, 1.12));
-  const ex = f ? 7 : 2;
-  r(ex, 4, 5, 4, '#0d0b14'); r(ex + (f ? 1 : 0), 8, 4, 1, '#0d0b14');
-  r(ex + (f ? 1 : 3), 5, 1, 1, '#a0e8ff');
-  r(f ? 4 : 8, 6, 2, 3, '#0d0b14');
-  r(f ? 10 : 4, 11, 2, 1, sk);
+  // head: wide cranium tapering to a small chin
+  const rows = [[3, 8], [2, 10], [1, 12], [1, 12], [1, 12], [1, 12], [2, 10], [2, 10], [3, 8], [4, 6], [5, 4], [6, 2]];
+  rows.forEach(([a, n], i) => r(a - 1, i, n + 2, 1, O));
+  r(3, -1, 8, 1, O); r(6, rows.length, 2, 1, O);
+  rows.forEach(([a, n], i) => r(a, i, n, 1, skin));
+  r(3, 0, 5, 1, shadeHex(skin, 1.15)); r(2, 1, 2, 2, shadeHex(skin, 1.15));
+  rows.slice(6).forEach(([a, n], i) => r(a + n - 1, i + 6, 1, 1, sk));
+  // two large almond eyes, shifted toward the facing side
+  const o = f ? 1 : -1;
+  for (const ex0 of [3 + o, 8 + o]) {
+    r(ex0, 4, 3, 1, '#0d0b14'); r(ex0 - 1, 5, 4, 1, '#0d0b14'); r(ex0, 6, 2, 1, '#0d0b14');
+    r(ex0 + 1, 4, 1, 1, '#4a6a8a');
+  }
+  r(6 + o, 9, 2, 1, sk);
   if (extra.carry != null) drawItem(ctx, extra.carry, Math.round(x) - 7, Y - 16);
 }
 
@@ -465,9 +484,20 @@ export function drawZix(ctx, x, y, L, frame = 0, dir = 1, extra = {}, t = 0) {
   const f = dir > 0, sh = L.shell || '#7d4fc9', sd = shadeHex(sh, 0.7), acc = L.accent || '#4fe0d0';
   const flap = Math.floor(t / 90) % 2;
   // wings
-  ctx.fillStyle = '#7fb4d8'; ctx.fillRect(X + (f ? -3 : 9), Y + 9 - flap, 8, 12 + flap);
-  ctx.fillStyle = '#b8e4ff'; ctx.fillRect(X + (f ? -2 : 10), Y + 10 - flap, 6, 10 + flap);
-  ctx.fillStyle = '#e8f8ff'; ctx.fillRect(X + (f ? -2 : 10), Y + 10 - flap, 1, 9);
+  {
+    const rows = [[1, 2], [0, 4], [0, 5], [0, 5], [1, 5], [1, 4], [2, 4], [3, 3], [4, 2]];
+    const wx = f ? 1 : 7, wy = 10 - flap;
+    rows.forEach(([a, n], i) => {
+      const sx = f ? wx - a - n + 4 : wx + a;      // mirror for facing
+      ctx.fillStyle = '#5f8fb8'; ctx.fillRect(X + sx - 1, Y + wy + i, n + 2, 1);
+    });
+    ctx.fillStyle = '#5f8fb8'; ctx.fillRect(X + (f ? wx + 1 : wx + 1) - 1, Y + wy - 1, 4, 1); ctx.fillRect(X + (f ? wx + 2 : wx + 3), Y + wy + rows.length, 2, 1);
+    rows.forEach(([a, n], i) => {
+      const sx = f ? wx - a - n + 4 : wx + a;
+      ctx.fillStyle = '#b8e4ff'; ctx.fillRect(X + sx, Y + wy + i, n, 1);
+      ctx.fillStyle = '#e8f8ff'; ctx.fillRect(X + sx + (f ? n - 1 : 0), Y + wy + i, 1, 1);
+    });
+  }
   // legs
   const lx = frame === 1 ? 3 : frame === 2 ? 5 : 4, rx = frame === 1 ? 9 : frame === 2 ? 7 : 8;
   for (const lg of [lx, rx]) { r(lg - 1, 25, 3, 5, O); r(lg, 25, 1, 4, sd); r(lg + (f ? 0 : -1), 29, 3, 5, O); r(lg + (f ? 1 : 0), 30, 1, 3, sd); r(lg - 1 + (f ? 1 : 0), 33, 3, 1, O); }

@@ -351,20 +351,19 @@ function drawBackdrop() {
   const R = Math.round(Math.min(bw, bh) * 0.22), cx = bw - Math.round(R * 1.15), cy = bh - Math.round(R * 1.2);
   for (let py = -R; py <= R; py++) for (let px = -R; px <= R; px++) {
     const d = px * px + py * py;
-    if (d > R * R) continue;
+    if (d > R * R - R * 0.6) continue;   // trims single-pixel spikes at the poles
     const lx = (-px - py) / (R * 1.41);           // light from top-left
     const z = Math.sqrt(1 - d / (R * R));
     const lit = lx * 0.6 + z * 0.6;
     const dither = 0;
     const v = lit + dither;
     x.fillStyle = v > 0.95 ? '#ff9a6a' : v > 0.7 ? '#e5704a' : v > 0.4 ? '#c4553a' : v > 0.15 ? '#8e3a2a' : '#54201e';
-    if (py < -R * 0.82 && v > 0.3) x.fillStyle = '#f4ece0';
     x.fillRect(cx + px, cy + py, 1, 1);
   }
   for (const [ox, oy, cr] of [[-0.3, 0.1, 0.12], [0.2, -0.3, 0.08], [0.1, 0.35, 0.1], [-0.5, -0.2, 0.06]]) {
     const ccx = cx + Math.round(ox * R), ccy = cy + Math.round(oy * R), rr = Math.max(2, Math.round(cr * R));
     for (let py = -rr; py <= rr; py++) for (let px = -rr; px <= rr; px++) {
-      if (px * px + py * py > rr * rr) continue;
+      if (px * px + py * py > rr * rr - rr * 0.6) continue;
       x.fillStyle = (px + py < 0) ? '#6e2a22' : '#a84a34';
       x.fillRect(ccx + px, ccy + py, 1, 1);
     }
@@ -811,7 +810,7 @@ function renderDeal() {
 }
 
 function strikesHtml(n, max = 3) {
-  let s = '<div class="strikes" data-p="strikes"><span>Patience</span>';
+  let s = '<div class="strikes" data-p="strikes">Patience';
   for (let i = 0; i < max; i++) s += `<i class="${i < max - n ? 'on' : ''}"></i>`;
   return s + '</div>';
 }
@@ -825,7 +824,7 @@ function buyHtml(v, c) {
   const lim = c.lim;
   return `
     ${whoHtml(c)}
-    <div class="item-head"><img class="icon" src="${itemIcon(c.itemId, SCALE())}" alt="">
+    <div class="item-head"><img class="icon" src="${itemIcon(c.itemId)}" alt="">
       <div><div class="item-name">${esc(it.n)}</div>
       <div class="meta">${it.cat} &middot; ${COND[c.cond].n} &middot; ${tierTag(e.tier)}</div></div></div>
     <div class="kv"><span>Appraisal</span><b>${estTxt(e)}</b></div>
@@ -872,8 +871,8 @@ function sellHtml(v, c) {
     ${strikesHtml(c.st.strikes, c.lim)}
     ${el.length ? `<div class="pick-list">${el.map(i => `
       <button class="pick ${i.uid === pickUid[c.id] ? 'on' : ''}" data-uid="${i.uid}">
-        <img class="icon sm" src="${itemIcon(i.id, SCALE())}" alt="">
-        <span class="pick-txt"><span class="nm">${esc(ITEMS[i.id].n)}</span><span>${COND[i.cond].n} &middot; paid ${money(i.paid)} &middot; est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</span></span>
+        <img class="icon sm" src="${itemIcon(i.id, 3)}" alt="">
+        <span><span class="nm">${esc(ITEMS[i.id].n)}</span><br>${COND[i.cond].n} &middot; paid ${money(i.paid)} &middot; est ${estTxt(i.est)}${i.est.fake ? ' <span class="fake">FAKE?</span>' : ''}</span>
       </button>`).join('')}</div>
       <div class="offer-row">
         <button class="btn small" data-step="-1">-</button>
@@ -926,7 +925,7 @@ function renderInv(force) {
   el.innerHTML = `${closeBtn}<h2>Inventory ${inv.length}/${v.me.cap}</h2>
     ${inv.length ? `<div class="inv-grid">${inv.map((i, n) => `
       <div class="inv-card" style="--i:${n}">
-        <img class="icon sm" src="${itemIcon(i.id, SCALE())}" alt="">
+        <img class="icon sm" src="${itemIcon(i.id, 3)}" alt="">
         <div><div class="nm">${esc(ITEMS[i.id].n)}</div>
         <div class="meta">${COND[i.cond].n} &middot; ${tierTag(i.est.tier)}</div>
         <div class="meta">Paid ${money(i.paid)} &middot; est ${estTxt(i.est)}</div>
@@ -955,7 +954,7 @@ function renderUpg(force) {
       const lvl = v.me.up[u.id], max = u.cost.length, cost = u.cost[lvl];
       const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
       return `<div class="upg">
-        <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">STAFF ${money(u.wage)}/SOL</span>` : ''}</div>
+        <div class="nm">${u.name} <span class="pips ${flashUpgrade === u.id ? 'flash' : ''}">${pips}</span>${u.staff ? `<span class="staff">STAFF ${money(u.wage)}/SOL PER LVL</span>` : ''}</div>
         <div class="ds">${esc(u.desc)}</div>
         <button class="btn ${lvl < max ? 'primary' : ''}" data-up="${u.id}" ${!eve || lvl >= max || cost > v.me.cash ? 'disabled' : ''}>${lvl >= max ? 'MAX' : money(cost)}</button>
       </div>`;
