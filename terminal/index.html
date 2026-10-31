@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Red Planet Pawn: MarsNet Edition</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='1' y='2' width='14' height='10' fill='%2335d0a0'/%3E%3Crect x='2' y='3' width='12' height='8' fill='%23140f1e'/%3E%3Crect x='3' y='5' width='3' height='1' fill='%2335d0a0'/%3E%3Crect x='5' y='13' width='6' height='2' fill='%23ff6f61'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/os.css">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body data-screen="boot">
+<canvas id="wall" aria-hidden="true"></canvas>
+<div class="scan" aria-hidden="true"></div>
+
+<!-- BOOT / LOGIN -->
+<section id="boot" class="screen">
+  <div class="win login">
+    <div class="tb"><span class="tb-ico" data-ico="logo"></span><span class="tb-t">MARSNET OS 4.9 // COLONY LOGIN</span></div>
+    <div class="wb">
+      <pre id="boot-log" class="boot-log"></pre>
+      <h1 class="logo">RED PLANET PAWN</h1>
+      <div class="sub">MARSNET EDITION &middot; THARSIS DOME &middot; 2149</div>
+      <label class="lbl" for="name-input">OPERATOR</label>
+      <input id="name-input" class="field" maxlength="14" autocomplete="nickname" spellcheck="false" placeholder="your name">
+      <div class="lbl">CONTRACT LENGTH</div>
+      <div class="seg" id="len-seg">
+        <button data-len="10">10 SOLS</button><button data-len="20" class="on">20 SOLS</button><button data-len="30">30 SOLS</button><button data-len="0">ENDLESS</button>
+      </div>
+      <div class="lbl">AI RIVAL SHOPS <span class="dim">(solo)</span></div>
+      <div class="seg" id="ai-seg">
+        <button data-ai="0" class="on">NONE</button><button data-ai="1">1</button><button data-ai="2">2</button><button data-ai="3">3</button>
+      </div>
+      <div class="row">
+        <button id="solo-btn" class="btn pri">&gt; PLAY SOLO</button>
+        <button id="continue-btn" class="btn" hidden>&gt; RESUME</button>
+      </div>
+      <div class="row">
+        <button id="host-btn" class="btn">&gt; HOST LINK</button>
+        <form id="join-form" class="join">
+          <input id="join-code" class="field code" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE" aria-label="Room code">
+          <button type="submit" class="btn">&gt; JOIN</button>
+        </form>
+      </div>
+      <p id="home-status" class="status" role="status"></p>
+      <button id="help-btn" class="link">read MANUAL.TXT</button>
+    </div>
+  </div>
+</section>
+
+<!-- LOBBY -->
+<section id="lobby" class="screen">
+  <div class="win login">
+    <div class="tb"><span class="tb-ico" data-ico="net"></span><span class="tb-t">UPLINK // LOBBY</span></div>
+    <div class="wb">
+      <div class="lbl">ROOM CODE</div>
+      <div id="room-code" class="room-code">----</div>
+      <div class="row"><input id="join-url" class="field" readonly aria-label="Join link"><button id="copy-btn" class="btn">COPY</button></div>
+      <div id="lobby-len" class="lbl"></div>
+      <ul id="roster" class="roster"></ul>
+      <div class="row">
+        <button id="ready-btn" class="btn pri" hidden>READY</button>
+        <button id="start-btn" class="btn pri" hidden disabled>START</button>
+        <button id="leave-btn" class="btn">LEAVE</button>
+      </div>
+      <p id="lobby-status" class="status" role="status"></p>
+    </div>
+  </div>
+</section>
+
+<!-- DESKTOP -->
+<section id="desk" class="screen">
+  <div id="icons"></div>
+  <div id="wins"></div>
+  <div id="notes"></div>
+  <div id="splash" hidden><div class="sp-t"></div><div class="sp-s"></div></div>
+  <div id="bar">
+    <button id="menu-btn" class="bar-logo" title="Windows"><span data-ico="logo"></span>MARSNET</button>
+    <div id="tasks"></div>
+    <div id="tray">
+      <span id="t-event" class="tray-i"></span>
+      <span id="t-sol" class="tray-i"></span>
+      <span id="t-phase" class="tray-i"></span>
+      <span id="t-cash" class="tray-i cash"></span>
+      <button id="t-mute" class="tray-i btnlike" title="Sound (Ctrl+M)"></button>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="over" class="screen">
+  <div class="win login">
+    <div class="tb"><span class="tb-ico" data-ico="ledger"></span><span class="tb-t">FINAL_AUDIT.LOG</span></div>
+    <div class="wb">
+      <h2 id="over-title" class="logo sm">CONTRACT COMPLETE</h2>
+      <ol id="results" class="results"></ol>
+      <div class="row"><button id="again-btn" class="btn pri">&gt; LOG OUT</button></div>
+    </div>
+  </div>
+</section>
+
+<div id="help" class="modal" hidden>
+  <div class="win help">
+    <div class="tb"><span class="tb-ico" data-ico="shell"></span><span class="tb-t">MANUAL.TXT</span><button class="tb-x" id="help-close" aria-label="Close"></button></div>
+    <div class="wb">
+      <p>You run a pawn shop on Mars through a colony terminal. Every tool is a window. Drag them where you like.</p>
+      <ul class="help-list">
+        <li><b>AIRLOCK CAM</b>: whoever is at your counter. Mornings bring sellers (offer, pay the ask, or pass). Afternoons bring buyers who want a category; pitch an item at a price.</li>
+        <li><b>SCANNER</b>: spectro-scan the item on the counter (25 CR) to check for fakes and get a tight value range. Costs the seller 3s of patience. You can also scan your own stock.</li>
+        <li><b>DOSSIER</b>: pull a customer's colony record (15 CR): their bottom line or budget, fraud flags, loan reliability. Costs 2s of patience.</li>
+        <li><b>STOCK.DB</b>: your inventory and shelf prices. Walk-in shoppers buy anything priced below what they'd pay. At midday the doors close so you can set prices.</li>
+        <li><b>NETLINK</b>: at midday or in the evening, breach a rival shop's books or intercept their sealed Pawn Guild answer (40 CR, 2 per sol). Security upgrades make you harder to breach. If you are traced you are fined and the target learns your name.</li>
+        <li><b>ADMIN</b>: staff, upgrades and insurance, evenings only. <b>LEDGER</b>: standings, today's numbers, market news.</li>
+        <li><b>GUILD COMMS</b>: every 5 sols the Pawn Guild posts a dilemma to every shop. Answer in secret. Results are anonymous, unless someone hacked you.</li>
+        <li><b>SHELL</b>: type <code>help</code>. Everything can be done by command: <code>offer 120</code>, <code>scan</code>, <code>pitch 3 400</code>, <code>hack kara books</code>...</li>
+        <li>Rent, wages and insurance are paid each night. Run out of credits and stock and you are bankrupt.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/os.js"></script>
+</body>
+</html>
